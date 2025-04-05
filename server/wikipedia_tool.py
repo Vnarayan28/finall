@@ -1,12 +1,31 @@
 from langchain_community.tools import WikipediaQueryRun
 from langchain_community.utilities import WikipediaAPIWrapper
+import wikipedia
 
-wikipedia_tool = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
+# Configure Wikipedia tool with error handling
+class CustomWikipediaTool(WikipediaQueryRun):
+    def _run(self, query: str) -> str:
+        try:
+            # Get summary with 3 sentences by default
+            result = wikipedia.summary(
+                query, 
+                sentences=3,
+                auto_suggest=False
+            )
+        except wikipedia.exceptions.PageError:
+            result = "No relevant Wikipedia page found. Try another search term."
+        except wikipedia.exceptions.DisambiguationError as e:
+            options = "\n".join(e.options[:3])
+            result = f"Multiple matches found. Please be more specific:\n{options}"
+        except wikipedia.exceptions.WikipediaException as e:
+            result = f"Wikipedia API error: {str(e)}"
+            
+        return result
 
-
-# try:
-#     result = wikipedia.summary(query, sentences=3)
-# except wikipedia.exceptions.PageError:
-#     result = "No Wikipedia page found for this topic."
-# except wikipedia.exceptions.DisambiguationError as e:
-#     result = f"Too many results. Try being more specific: {e.options[:3]}"
+# Initialize tool with custom configuration
+wikipedia_tool = CustomWikipediaTool(
+    api_wrapper=WikipediaAPIWrapper(
+        top_k_results=3,
+        doc_content_chars_max=400
+    )
+)

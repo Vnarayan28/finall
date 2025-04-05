@@ -16,6 +16,9 @@ from pydantic import BaseModel
 class VideoRequest(BaseModel):
     topic: str
 
+
+
+
 # Database setup
 client = MongoClient(os.getenv("MONGO_URI"))
 db = client[os.getenv("DB_NAME")]
