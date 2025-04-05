@@ -7,17 +7,18 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { RetellWebClient } from 'retell-client-js-sdk'
 import { Loader2, AlertCircle } from 'lucide-react'
 import { motion } from 'framer-motion'
-import type { Slide, Lecture } from '../types/index';
+import type { Slide, Lecture } from '../types/index'
 
 import Voice, { MessageTranscript } from '../components/Voice'
 import Slideshow, { skipToSlide } from '../components/Slideshow'
 import Sidebar from '../components/Sidebar'
+import { cn } from '../lib/utils'
 
 export default function Page() {
   const searchParams = useSearchParams()
   const videoId = searchParams.get('videoId')
   const topic = searchParams.get('topic')
-  
+
   const [lecture, setLecture] = useState<Lecture | undefined>(undefined)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -37,9 +38,9 @@ export default function Page() {
         const response = await fetch(
           `/api/generate-lecture?videoId=${videoId}&topic=${encodeURIComponent(topic)}`
         )
-        
+
         if (!response.ok) throw new Error('Failed to generate lecture')
-        
+
         const data = await response.json()
         setLecture(data.lecture)
       } catch (err) {
@@ -122,7 +123,7 @@ export default function Page() {
         <p className="text-red-500">{error || 'Failed to generate lecture'}</p>
         <button
           onClick={() => window.history.back()}
-          className="mt-4 px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg text-white"
+          className="mt-4 px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg text-white transition-colors duration-200"
         >
           Back to Videos
         </button>
@@ -131,30 +132,38 @@ export default function Page() {
   }
 
   return (
-    <main className="flex flex-col h-full w-full bg-gray-50">
-      <PanelGroup direction="vertical">
+    <main className="flex flex-col h-full w-full bg-gradient-to-br from-gray-50 to-gray-100">
+      <PanelGroup direction="vertical" className="h-full">
         <Panel defaultSize={40} minSize={30}>
-          <div className="h-full p-4 bg-black">
-            <LiteYouTubeEmbed
-              id={lecture.video_id}
-              title={lecture.title}
-              wrapperClass="yt-lite rounded-xl overflow-hidden"
-              playerClass="absolute inset-0 w-full h-full"
-            />
+          <div className="h-full p-6 bg-gray-900 rounded-b-2xl shadow-xl">
+            <div className="relative h-full overflow-hidden rounded-xl border-2 border-gray-700/50 hover:border-purple-500/30 transition-all duration-300">
+              <LiteYouTubeEmbed
+                id={lecture.video_id}
+                title={lecture.title}
+                wrapperClass="yt-lite rounded-lg overflow-hidden"
+                playerClass="absolute inset-0 w-full h-full"
+              />
+            </div>
           </div>
         </Panel>
 
-        <PanelResizeHandle className="h-2 bg-gray-200 hover:bg-purple-500 transition-colors" />
+        <PanelResizeHandle className="h-2 bg-gradient-to-r from-purple-500 to-blue-500 hover:h-3 transition-all duration-200 group">
+          <div className="w-8 h-full mx-auto bg-gray-200/50 group-hover:bg-white rounded-full transition-colors" />
+        </PanelResizeHandle>
 
         <Panel defaultSize={60}>
           <PanelGroup direction="horizontal">
             <Panel minSize={25} defaultSize={75}>
-              <div className="flex flex-col items-center h-full">
-                <div className="w-full max-w-4xl p-4">
-                  <h1 className="text-3xl font-bold text-gray-900 mb-4">
+              <div className="flex flex-col h-full p-6">
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="w-full max-w-5xl mx-auto"
+                >
+                  <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-blue-600 mb-6">
                     {lecture.title}
                   </h1>
-                  <div className="relative h-[600px]">
+                  <div className="relative h-[700px] rounded-xl shadow-lg border border-gray-200 bg-white">
                     <div className="absolute z-20 inset-0 flex items-center justify-center">
                       <Voice
                         onFuncCallResult={handleFuncCallResult}
@@ -165,31 +174,52 @@ export default function Page() {
                         onUpdate={(update) => setMessages(update.transcript)}
                       />
                     </div>
+
                     {!funcCallSocket && (
-                      <div className="absolute z-10 inset-0 bg-white/75 flex items-center justify-center">
-                        <Loader2 className="h-12 w-12 animate-spin text-purple-500" />
+                      <div className="absolute z-10 inset-0 bg-white/90 backdrop-blur-sm flex items-center justify-center rounded-xl">
+                        <motion.div
+                          initial={{ scale: 0.5 }}
+                          animate={{ scale: 1 }}
+                          className="text-center space-y-4"
+                        >
+                          <Loader2 className="h-16 w-16 animate-spin text-purple-600" />
+                          <p className="text-gray-600 font-medium">
+                            Initializing lecture session...
+                          </p>
+                        </motion.div>
                       </div>
                     )}
+
                     <Slideshow
                       lecture={lecture}
                       onSlideChange={(index) => {
-                        const slide = lecture.slides[index]
-                        funcCallSocket?.send(slide.speaker_notes || slide.title)
+                        const slide = lecture.slides[index];
+                        funcCallSocket?.send(slide.speaker_notes || slide.title);
                       }}
                     />
-                  </div>
-                </div>
+
+                    <p className="rounded-xl">
+                      {/* Add your paragraph content here */}
+                    </p>
+                  </div> {}
+                </motion.div>
               </div>
             </Panel>
 
-            <PanelResizeHandle className="w-2 bg-gray-200 hover:bg-purple-500 transition-colors" />
+
+            <PanelResizeHandle className="w-2 bg-gradient-to-b from-purple-500 to-blue-500 hover:w-3 transition-all duration-200 group">
+              <div className="h-8 w-full my-auto bg-gray-200/50 group-hover:bg-white rounded-full transition-colors" />
+            </PanelResizeHandle>
 
             <Panel
               defaultSize={25}
               minSize={25}
-              className="border-l border-gray-200"
+              className="border-l border-gray-200/50 bg-gradient-to-b from-gray-50 to-white"
             >
-              <Sidebar messages={messages} />
+              <Sidebar
+                messages={messages}
+                className="p-6 h-full overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent"
+              />
             </Panel>
           </PanelGroup>
         </Panel>

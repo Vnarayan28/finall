@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@auth0/nextjs-auth0": "^3.5.0",
+    "@google/generative-ai": "^0.24.0",
     "@headlessui/react": "^2.2.0",
     "@tailwindcss/forms": "^0.5.10",
     "@types/reveal.js": "^5.0.3",
@@ -19,6 +20,7 @@
     "i": "^0.3.7",
     "lucide-react": "^0.372.0",
     "next": "^14.2.2",
+    "node-fetch": "^3.3.2",
     "react": "^18",
     "react-awesome-reveal": "^4.3.1",
     "react-dom": "^18",
