@@ -29,51 +29,53 @@ export default function LecturePage() {
   }
 
   return (
-    <div className="h-screen bg-gray-50">
+    <div className="h-screen bg-gray-900 flex flex-col">
+      {/* Header */}
+      <div className="bg-gray-900 text-white p-4 shadow-md">
+        <h1 className="text-2xl font-bold">{topic} Lecture</h1>
+      </div>
+
+      {/* Main Content - Full Page Video */}
+      <div className="flex-1 relative">
+        <div className="absolute inset-0 bg-black">
+          <iframe
+            className="w-full h-full"
+            src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`}
+            title={`${topic} lecture`}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        </div>
+
+        {/* Gradient overlay at bottom for controls */}
+        <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-gray-900 to-transparent pointer-events-none" />
+      </div>
+
       {/* Chat Toggle Button */}
       <button
         onClick={() => setIsChatOpen(!isChatOpen)}
-        className="fixed bottom-6 right-6 bg-purple-600 text-white p-4 rounded-full shadow-lg hover:bg-purple-700 transition-colors z-50"
+        className={`fixed bottom-6 right-6 bg-purple-600 text-white p-4 rounded-full shadow-xl hover:bg-purple-700 transition-all z-50 transform ${isChatOpen ? 'rotate-90' : 'rotate-0'}`}
+        aria-label={isChatOpen ? "Close chat" : "Open chat"}
       >
         {isChatOpen ? <FiX size={24} /> : <FiMessageCircle size={24} />}
       </button>
 
-      <div className="max-w-7xl mx-auto p-6 h-full">
-        <div className="flex flex-col h-full">
-          {/* Header */}
-          <h1 className="text-3xl font-bold text-gray-900 mb-6">{topic} Lecture</h1>
-          
-          {/* Main Content */}
-          <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Video Player */}
-            <div className="bg-gray-800 rounded-xl shadow-xl overflow-hidden aspect-video">
-              <iframe
-                className="w-full h-full"
-                src={`https://www.youtube.com/embed/${videoId}?autoplay=1`}
-                title={`${topic} lecture`}
-                allowFullScreen
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Chat Sidebar */}
-      <div className={`fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-xl transition-transform duration-300 ease-in-out transform ${isChatOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+      <div className={`fixed top-0 right-0 h-full w-full max-w-md bg-gray-800 shadow-2xl transition-all duration-300 ease-in-out ${isChatOpen ? 'translate-x-0' : 'translate-x-full'}`}>
         <div className="flex flex-col h-full">
           {/* Chat Header */}
-          <div className="flex items-center justify-between p-6 border-b">
-            <h2 className="text-xl font-semibold">Lecture Assistant</h2>
+          <div className="flex items-center justify-between p-4 bg-gray-900 border-b border-gray-700">
+            <h2 className="text-xl font-semibold text-white">Lecture Assistant</h2>
             <button
               onClick={() => setIsChatOpen(false)}
-              className="text-gray-500 hover:text-gray-700"
+              className="text-gray-400 hover:text-white p-2 rounded-full hover:bg-gray-700"
             >
-              <FiX size={24} />
+              <FiX size={20} />
             </button>
           </div>
           
           {/* Chat Content */}
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className="flex-1 overflow-y-auto">
             <ChatBot 
               videoId={videoId}
               topic={topic}
