@@ -27,21 +27,27 @@ export async function GET(req: Request) {
     const { videoId, topic } = validation.data
     console.log('Fetching data for:', { videoId, topic })
 
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 5000)
+    const backendUrl = new URL('http://localhost:8000/generate-lecture')
+    backendUrl.searchParams.set('videoId', videoId)
+    backendUrl.searchParams.set('topic', topic)
 
-    const backendUrl = `http://localhost:8000/generate-lecture?videoId=${encodeURIComponent(videoId)}&topic=${encodeURIComponent(topic)}`
-    console.log('Backend URL:', backendUrl)
+    console.log('Backend URL:', backendUrl.toString())
 
-    const response = await fetch(backendUrl, { signal: controller.signal })
-    clearTimeout(timeout)
+    const response = await fetch(backendUrl.toString(), {
+      signal: AbortSignal.timeout(5000) // Modern timeout approach
+    })
 
     console.log('Backend response status:', response.status)
     
     if (!response.ok) {
-      const errorBody = await response.text()
+      let errorBody
+      try {
+        errorBody = await response.json()
+      } catch {
+        errorBody = await response.text()
+      }
       console.error('Backend error response:', errorBody)
-      throw new Error(`Backend error: ${response.status} - ${errorBody}`)
+      throw new Error(`Backend error: ${response.status} - ${JSON.stringify(errorBody)}`)
     }
 
     const data = await response.json()
@@ -52,7 +58,10 @@ export async function GET(req: Request) {
   } catch (error) {
     console.error('Full error details:', error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { 
+        error: error instanceof Error ? error.message : 'Internal server error',
+        stack: process.env.NODE_ENV === 'development' && error instanceof Error ? error.stack : undefined
+      },
       { status: 500 }
     )
   }

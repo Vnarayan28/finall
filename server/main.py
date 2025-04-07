@@ -9,17 +9,16 @@ import os
 from dotenv import load_dotenv
 import requests
 from typing import List
+import json
 
 load_dotenv()
 from pydantic import BaseModel
+app = FastAPI()
 
 class VideoRequest(BaseModel):
     topic: str
 
 
-
-
-# Database setup
 client = MongoClient(os.getenv("MONGO_URI"))
 db = client[os.getenv("DB_NAME")]
 users_collection = db["users"]
@@ -33,7 +32,6 @@ YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-app = FastAPI()
 
 # CORS configuration
 app.add_middleware(
@@ -189,7 +187,7 @@ async def get_videos(data: VideoRequest):
 
             videos.append(VideoResource(
                 title=item["snippet"]["title"],
-                videoId=item["id"],
+                videoId=item["id"]["videoId"],
                 description=item["snippet"]["description"],
                 channel=item["snippet"]["channelTitle"],
                 duration=duration
@@ -226,44 +224,72 @@ class Lecture(BaseModel):
     video_id: str
     topic: str
 
-# Enhanced generate-lecture endpoint
-@app.post("/generate-lecture")
-async def generate_lecture(request: LectureRequest, current_user: TokenData = Depends(get_current_user)):
+@app.get("/generate-lecture")
+async def generate_lecture(videoId: str, topic: str):
     try:
-        # Get video details
-        video = (await get_videos(request, current_user))["videos"][0]
+        # Get specific video details using provided videoId
+        youtube_url = "https://www.googleapis.com/youtube/v3/videos"
+        params = {
+            "part": "snippet,contentDetails",
+            "id": videoId,
+            "key": YOUTUBE_API_KEY
+        }
         
-        # Get transcript
-        transcript = YouTubeTranscriptApi.get_transcript(video.videoId)
+        response = requests.get(youtube_url, params=params)
+        response.raise_for_status()
+        video_data = response.json()["items"][0]
+        
+        # Create video object
+        duration = video_data["contentDetails"]["duration"].replace("PT", "").replace("H", ":").replace("M", ":").replace("S", "")
+        video = VideoResource(
+            title=video_data["snippet"]["title"],
+            videoId=videoId,
+            description=video_data["snippet"]["description"],
+            channel=video_data["snippet"]["channelTitle"],
+            duration=duration
+        )
+
+        # Get transcript with error handling
+        try:
+            transcript = YouTubeTranscriptApi.get_transcript(videoId)
+        except (TranscriptsDisabled, NoTranscriptFound) as e:
+            raise HTTPException(status_code=404, detail="Transcript not available")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Transcript error: {str(e)}")
+
         transcript_text = " ".join([t['text'] for t in transcript])
-        
-        # Generate with Gemini
-        model = genai.GenerativeModel('gemini-pro')
-        response = model.generate_content(f"""
-            Generate lecture slides about {request.topic} using this transcript:
-            {transcript_text[:8000]}
-            
-            Use this JSON format:
-            {Slide.schema_json()}
-        """)
-        
-        # Parse response
-        slides = [Slide(**slide) for slide in json.loads(response.text)]
-        
-        # Create lecture
+
+        # Generate content with Gemini
+        model = genai.GenerativeModel('gemini-1.5-pro-latest')
+        try:
+            response = model.generate_content(
+                f"Generate lecture slides about {topic} using this transcript: {transcript_text[:8000]}"
+                " Return ONLY valid JSON in this format: {'slides': [{'title': '', 'template_id': 1, ...}]}"
+            )
+            generated_text = response.parts[0].text.replace('```json', '').replace('```', '').strip()
+            slides_data = json.loads(generated_text)
+            slides = [Slide(**slide) for slide in slides_data.get("slides", [])]
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"AI generation failed: {str(e)}")
+
+        # Create and store lecture
         lecture_data = Lecture(
-            title=f"{request.topic} Lecture",
+            title=f"{topic} Lecture",
             description=f"Generated from video: {video.title}",
             slides=slides,
-            video_id=video.videoId,
-            topic=request.topic
+            video_id=videoId,
+            topic=topic
         ).dict()
-        
-        # Store in DB
-        lectures_collection.insert_one(lecture_data)
-        
-        return {"lecture": lecture_data}
 
+        try:
+            lectures_collection.insert_one(lecture_data)
+        except PyMongoError as e:
+            raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+        return lecture_data
+
+    except HTTPException as he:
+        raise he
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

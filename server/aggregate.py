@@ -34,7 +34,7 @@ class LectureGenerator:
     def _call_gemini(self, prompt: str) -> str:
         """Calls Gemini API synchronously (Flask is sync by default)."""
         genai.configure(api_key=self.api_keys[self.current_key])
-        model = genai.GenerativeModel("gemini-pro")
+        model = genai.GenerativeModel("gemini-1.5-pro-latest")
 
         try:
             response = model.generate_content(prompt)
@@ -68,14 +68,21 @@ class LectureGenerator:
 
             # Generate new content
             prompt = f"""
-            Generate a structured JSON-formatted lecture on {topic} with:
+            Generate a detailed lecture on the topic '{topic}' in structured JSON format like:
             {{
                 "title": "Lecture Title",
                 "slides": [
-                    {{"title": "Slide 1", "content": "Details about slide 1", "images": ["image_url1"]}},
-                    {{"title": "Slide 2", "content": "Details about slide 2", "images": ["image_url2"]}}
+                    {{
+                        "title": "Slide 1 Title",
+                        "content": "Detailed explanation for slide 1"
+                    }},
+                    {{
+                        "title": "Slide 2 Title",
+                        "content": "Detailed explanation for slide 2"
+                    }}
                 ]
             }}
+            Only return valid JSON.
             """
 
             raw_response = self._call_gemini(prompt)

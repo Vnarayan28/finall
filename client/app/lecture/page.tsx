@@ -1,71 +1,25 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import ChatBot from '../components/ChatBot'
-
-interface Lecture {
-  video_id: string
-  content: string
-  slides?: Array<{
-    title: string
-    content: string
-    duration: string
-  }>
-}
+import { FiMessageCircle, FiX } from 'react-icons/fi'
 
 export default function LecturePage() {
   const searchParams = useSearchParams()
   const videoId = searchParams.get('videoId')
   const topic = searchParams.get('topic')
+  const [isChatOpen, setIsChatOpen] = useState(false)
 
-  const [lecture, setLecture] = useState<Lecture | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!videoId || !topic) {
-      setError('Missing videoId or topic')
-      setLoading(false)
-      return
-    }
-
-    const fetchLecture = async () => {
-      try {
-        const res = await fetch(
-          `/api/generate-lecture?videoId=${videoId}&topic=${encodeURIComponent(topic)}`
-        )
-        
-        if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`)
-        
-        const data = await res.json()
-        setLecture(data)
-      } catch (err) {
-        console.error('Error fetching lecture:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load lecture')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchLecture()
-  }, [videoId, topic])
-
-  if (loading) {
+  if (!videoId || !topic) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded max-w-md">
-          <p>{error}</p>
+      <div className="flex items-center justify-center h-screen bg-gray-50">
+        <div className="bg-white p-8 rounded-xl shadow-lg max-w-md text-center space-y-4">
+          <div className="text-red-500 text-4xl">⚠️</div>
+          <h2 className="text-2xl font-semibold text-gray-800">Missing Parameters</h2>
+          <p className="text-gray-600">Please ensure both videoId and topic are provided.</p>
           <button
             onClick={() => window.location.reload()}
-            className="mt-2 px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+            className="mt-4 px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
           >
             Try Again
           </button>
@@ -75,37 +29,57 @@ export default function LecturePage() {
   }
 
   return (
-    <div className="flex flex-col h-screen">
-      <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
-        {/* Video Player */}
-        <div className="bg-black rounded-lg overflow-hidden">
-          <iframe
-            className="w-full h-full"
-            src={`https://www.youtube.com/embed/${videoId}?autoplay=1`}
-            title={`${topic} lecture`}
-            allowFullScreen
-          ></iframe>
-        </div>
+    <div className="h-screen bg-gray-50">
+      {/* Chat Toggle Button */}
+      <button
+        onClick={() => setIsChatOpen(!isChatOpen)}
+        className="fixed bottom-6 right-6 bg-purple-600 text-white p-4 rounded-full shadow-lg hover:bg-purple-700 transition-colors z-50"
+      >
+        {isChatOpen ? <FiX size={24} /> : <FiMessageCircle size={24} />}
+      </button>
 
-        {/* Lecture Content */}
-        <div className="bg-white rounded-lg shadow-md p-6 overflow-y-auto">
-          <h1 className="text-2xl font-bold mb-4">{topic} Lecture</h1>
-          {lecture?.content && (
-            <div className="prose max-w-none">
-              {lecture.content}
+      <div className="max-w-7xl mx-auto p-6 h-full">
+        <div className="flex flex-col h-full">
+          {/* Header */}
+          <h1 className="text-3xl font-bold text-gray-900 mb-6">{topic} Lecture</h1>
+          
+          {/* Main Content */}
+          <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Video Player */}
+            <div className="bg-gray-800 rounded-xl shadow-xl overflow-hidden aspect-video">
+              <iframe
+                className="w-full h-full"
+                src={`https://www.youtube.com/embed/${videoId}?autoplay=1`}
+                title={`${topic} lecture`}
+                allowFullScreen
+              />
             </div>
-          )}
+          </div>
         </div>
       </div>
 
-      {/* ChatBot */}
-      <div className="border-t border-gray-200 p-4 h-96">
-        {lecture && (
-          <ChatBot 
-            videoId={lecture.video_id}
-            topic={topic || "unknown topic"}
-          />
-        )}
+      {/* Chat Sidebar */}
+      <div className={`fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-xl transition-transform duration-300 ease-in-out transform ${isChatOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+        <div className="flex flex-col h-full">
+          {/* Chat Header */}
+          <div className="flex items-center justify-between p-6 border-b">
+            <h2 className="text-xl font-semibold">Lecture Assistant</h2>
+            <button
+              onClick={() => setIsChatOpen(false)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <FiX size={24} />
+            </button>
+          </div>
+          
+          {/* Chat Content */}
+          <div className="flex-1 overflow-y-auto p-4">
+            <ChatBot 
+              videoId={videoId}
+              topic={topic}
+            />
+          </div>
+        </div>
       </div>
     </div>
   )
