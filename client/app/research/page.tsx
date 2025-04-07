@@ -24,6 +24,8 @@ export default function ResearchPage() {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const { push } = useRouter();
   const searchParams = useSearchParams();
+  const router = useRouter();
+
 
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
 
