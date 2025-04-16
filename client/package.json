@@ -39,6 +39,7 @@
     "utf-8-validate": "^6.0.3",
     "wikipedia": "^2.1.2",
     "ws": "^8.16.0",
+    "youtube-transcript-api": "^1.1.2",
     "zustand": "^4.5.2"
   },
   "devDependencies": {

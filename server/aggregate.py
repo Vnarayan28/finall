@@ -22,7 +22,7 @@ class LectureGenerator:
     def __init__(self):
         self.client = MongoClient(os.getenv("MONGODB_URI"))
         self.db = self.client.get_database(os.getenv("DB_NAME"))
-        self.api_keys = os.getenv("GEMINI_API_KEYS").split(",")
+        self.api_keys = os.getenv("GEMINI_API_KEY").split(",")
         self.current_key = 0
 
     def _switch_api_key(self):

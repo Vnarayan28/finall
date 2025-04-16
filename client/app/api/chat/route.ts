@@ -3,7 +3,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 import { WikipediaQueryRun } from '@langchain/community/tools/wikipedia_query_run'
 import { z } from 'zod'
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_KEY!)
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 const wikipedia = new WikipediaQueryRun({
   topKResults: 3,
   maxDocContentLength: 4000,
@@ -18,6 +18,13 @@ const requestSchema = z.object({
 async function fetchTranscript(videoId: string): Promise<string> {
   try {
     const res = await fetch(`https://yt.lemnoslife.com/videos?part=transcript&id=${videoId}`)
+
+    const contentType = res.headers.get("content-type") || ""
+    if (!res.ok || !contentType.includes("application/json")) {
+      console.error(`Transcript fetch failed for video ${videoId}:`, await res.text())
+      return ''
+    }
+
     const data = await res.json()
     const text = data?.transcript?.map((t: any) => t.text).join(' ') || ''
     return text
@@ -26,6 +33,7 @@ async function fetchTranscript(videoId: string): Promise<string> {
     return ''
   }
 }
+
 
 export async function POST(req: Request) {
   try {
@@ -37,7 +45,7 @@ export async function POST(req: Request) {
       wikipedia.call(topic),
     ])
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' })
+    const model = genAI.getGenerativeModel({ model: 'models/gemini-1.5-pro-latest' })
 
     const prompt = `
 You are an educational assistant. Answer the user's question based on the topic, video transcript, and Wikipedia content.

@@ -53,12 +53,13 @@ export default function ChatBot({ videoId, topic }: ChatBotProps) {
       
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: data.response
-      }])
-    } catch (error) {
+        content: data.text || 'Sorry, no response was generated.'
+      }])      
+    } catch (error: any) {
+      console.error('Chat error:', error)
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: 'Sorry, I encountered an error. Please try again.'
+        content: '❌ Error: ' + (error.message || 'Something went wrong.')
       }])
     } finally {
       setLoading(false)

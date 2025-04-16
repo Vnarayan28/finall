@@ -34,7 +34,7 @@ export async function GET(req: Request) {
     console.log('Backend URL:', backendUrl.toString())
 
     const response = await fetch(backendUrl.toString(), {
-      signal: AbortSignal.timeout(5000) // Modern timeout approach
+      signal: AbortSignal.timeout(5000) 
     })
 
     console.log('Backend response status:', response.status)

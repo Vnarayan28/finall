@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Loader2, AlertCircle, ChevronRight, Moon, Sun, ArrowLeft } from "lucide-react";
-
+import Image from "next/image";
 type VideoResource = {
   title: string;
   videoId: string;
@@ -24,8 +23,6 @@ export default function ResearchPage() {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const { push } = useRouter();
   const searchParams = useSearchParams();
-  const router = useRouter();
-
 
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
 
@@ -146,7 +143,7 @@ export default function ResearchPage() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
       >
-        {/* Background elements matching login page */}
+        {}
         <div className={`absolute inset-0 ${
           isDarkMode 
             ? "bg-gradient-to-br from-purple-900/30 via-gray-900 to-blue-900/30"
@@ -249,7 +246,7 @@ export default function ResearchPage() {
 
       {/* Back Button */}
       <motion.button
-        onClick={() => router.back()}
+        onClick={() => push('/')}
         className={`absolute top-6 left-6 p-2 rounded-full z-50 ${
           isDarkMode ? 'text-purple-400 hover:bg-purple-900/50' : 'text-purple-600 hover:bg-purple-100'
         }`}
@@ -402,7 +399,7 @@ export default function ResearchPage() {
                 }`}
               >
                 <Sparkles className={`mr-3 h-6 w-6 ${
-                  isDarkMode ? "text-white" : "text-gray-900"
+                  isDarkMode ? 'text-white' : 'text-gray-900'
                 } animate-pulse`} />
                 Start Interactive Lecture
               </motion.button>

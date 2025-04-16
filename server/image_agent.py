@@ -17,7 +17,7 @@ load_dotenv()
 
 # Initialize Gemini with LangChain
 llm = ChatGoogleGenerativeAI(
-    model="gemini-pro",
+    model="gemini-1.5-pro-latest",
     temperature=0.7,
     google_api_key=os.getenv("GEMINI_API_KEY")  # ✅ Corrected API Key reference
 )
@@ -42,7 +42,7 @@ You have access to the following tools:
 @tool
 async def get_descriptions(images: List[str]) -> str:
     """Takes a list of images and explains why each image is relevant."""
-    vision_model = ChatGoogleGenerativeAI(model="gemini-pro-vision", temperature=0.5)
+    vision_model = ChatGoogleGenerativeAI(model="gemini-1.5-pro-latest", temperature=0.5)
 
     async def get_one_description(image: str) -> str:
         try:

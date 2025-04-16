@@ -1,37 +1,29 @@
 from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from passlib.context import CryptContext
 from jose import jwt, JWTError
 from datetime import datetime, timedelta
 from pymongo import MongoClient
 import os
 from dotenv import load_dotenv
-import requests
-from typing import List
-import json
+from youtube_transcript_api import YouTubeTranscriptApi
+import google.generativeai as genai
+from pydantic import BaseModel
 
 load_dotenv()
-from pydantic import BaseModel
+
 app = FastAPI()
 
-class VideoRequest(BaseModel):
-    topic: str
-
-
+# MongoDB Setup
 client = MongoClient(os.getenv("MONGO_URI"))
 db = client[os.getenv("DB_NAME")]
 users_collection = db["users"]
 lectures_collection = db["lectures"]
 
-# Security setup
+# JWT Configuration
 SECRET_KEY = os.getenv("JWT_SECRET")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
-YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 1 day
 
 # CORS configuration
 app.add_middleware(
@@ -41,7 +33,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Models
 class UserCreate(BaseModel):
     username: str
     email: str
@@ -51,26 +42,21 @@ class UserLogin(BaseModel):
     email: str
     password: str
 
-class LectureRequest(BaseModel):
+class VideoRequest(BaseModel):
     topic: str
-
-class VideoResource(BaseModel):
-    title: str
-    videoId: str
-    description: str
-    channel: str
-    duration: str
-    status: str = "todo"
 
 class TokenData(BaseModel):
     user_id: str
     email: str
 
-# Utility functions
 def hash_password(password: str) -> str:
+    import passlib.context
+    pwd_context = passlib.context.CryptContext(schemes=["bcrypt"], deprecated="auto")
     return pwd_context.hash(password)
 
 def verify_password(plain: str, hashed: str) -> bool:
+    import passlib.context
+    pwd_context = passlib.context.CryptContext(schemes=["bcrypt"], deprecated="auto")
     return pwd_context.verify(plain, hashed)
 
 def create_token(data: dict, expires_delta: timedelta = None) -> str:
@@ -104,7 +90,7 @@ def get_current_user(authorization: str = Header(None)) -> TokenData:
     except JWTError as e:
         raise HTTPException(status_code=401, detail=f"Token validation failed: {str(e)}")
 
-# Routes
+
 @app.post("/signup")
 async def signup(user: UserCreate):
     if users_collection.find_one({"$or": [{"email": user.email}, {"username": user.username}]}):
@@ -139,159 +125,59 @@ async def login(user: UserLogin):
     
     return {"message": "Login successful", "token": token}
 
-class TopicRequest(BaseModel):
-    topic: str
-
 @app.post("/get_videos")
-async def get_videos(data: VideoRequest):
+async def get_videos(topic: str):
     try:
-        if not YOUTUBE_API_KEY:
-            raise HTTPException(status_code=500, detail="YouTube API key not configured")
-
-        search_url = "https://www.googleapis.com/youtube/v3/search"
-        params = {
-            "part": "snippet",
-            "q": data.topic,
-            "type": "video",
-            "maxResults": 6,
-            "key": YOUTUBE_API_KEY,
-            "relevanceLanguage": "en",
-            "videoDuration": "medium",
-            "videoEmbeddable": "true",
-            "videoSyndicated": "true"
-        }
-
-        search_response = requests.get(search_url, params=params)
-        search_response.raise_for_status()
-        search_results = search_response.json()
-
-        if not search_results.get("items"):
-            raise HTTPException(status_code=404, detail="No videos found")
-
-        video_ids = [item["id"]["videoId"] for item in search_results["items"]]
-        details_url = "https://www.googleapis.com/youtube/v3/videos"
-        details_params = {
-            "part": "snippet,contentDetails",
-            "id": ",".join(video_ids),
-            "key": YOUTUBE_API_KEY
-        }
-
-        details_response = requests.get(details_url, params=details_params)
-        details_response.raise_for_status()
-        details_results = details_response.json()
-
-        videos = []
-        for item in details_results["items"]:
-            duration = item["contentDetails"]["duration"]
-            duration = duration.replace("PT", "").replace("H", ":").replace("M", ":").replace("S", "")
-
-            videos.append(VideoResource(
-                title=item["snippet"]["title"],
-                videoId=item["id"]["videoId"],
-                description=item["snippet"]["description"],
-                channel=item["snippet"]["channelTitle"],
-                duration=duration
-            ))
-
-        return {"videos": videos}
-
-    except requests.exceptions.RequestException as e:
-        raise HTTPException(status_code=500, detail=f"YouTube API error: {str(e)}")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# Add to imports
-from youtube_transcript_api import YouTubeTranscriptApi
-import google.generativeai as genai
-from pydantic import BaseModel
-
-# Add after security setup
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-
-# Add new models
-class Slide(BaseModel):
-    title: str
-    template_id: int
-    texts: List[str] = []
-    speaker_notes: str = ""
-    images: List[dict] = []
-
-class Lecture(BaseModel):
-    title: str
-    description: str 
-    slides: List[Slide]
-    video_id: str
-    topic: str
-
-@app.get("/generate-lecture")
-async def generate_lecture(videoId: str, topic: str):
-    try:
-        # Get specific video details using provided videoId
-        youtube_url = "https://www.googleapis.com/youtube/v3/videos"
-        params = {
-            "part": "snippet,contentDetails",
-            "id": videoId,
-            "key": YOUTUBE_API_KEY
-        }
-        
-        response = requests.get(youtube_url, params=params)
-        response.raise_for_status()
-        video_data = response.json()["items"][0]
-        
-        # Create video object
-        duration = video_data["contentDetails"]["duration"].replace("PT", "").replace("H", ":").replace("M", ":").replace("S", "")
-        video = VideoResource(
-            title=video_data["snippet"]["title"],
-            videoId=videoId,
-            description=video_data["snippet"]["description"],
-            channel=video_data["snippet"]["channelTitle"],
-            duration=duration
+        import requests
+        response = requests.get(
+            "https://www.googleapis.com/youtube/v3/search",
+            params={
+                "part": "snippet",
+                "q": topic,
+                "key": os.getenv("YOUTUBE_API_KEY"),
+                "maxResults": 5,
+                "type": "video"
+            }
         )
 
-        # Get transcript with error handling
-        try:
-            transcript = YouTubeTranscriptApi.get_transcript(videoId)
-        except (TranscriptsDisabled, NoTranscriptFound) as e:
-            raise HTTPException(status_code=404, detail="Transcript not available")
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Transcript error: {str(e)}")
+        data = response.json()
+        return {"videos": data.get("items", [])}
 
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/generate-answer")
+async def generate_answer(videoId: str, topic: str, question: str):
+    try:
+        # Fetch YouTube transcript
+        transcript = YouTubeTranscriptApi.get_transcript(videoId)
         transcript_text = " ".join([t['text'] for t in transcript])
 
-        # Generate content with Gemini
-        model = genai.GenerativeModel('gemini-1.5-pro-latest')
+        # Fetch Wikipedia content
+        import wikipedia
         try:
-            response = model.generate_content(
-                f"Generate lecture slides about {topic} using this transcript: {transcript_text[:8000]}"
-                " Return ONLY valid JSON in this format: {'slides': [{'title': '', 'template_id': 1, ...}]}"
-            )
-            generated_text = response.parts[0].text.replace('```json', '').replace('```', '').strip()
-            slides_data = json.loads(generated_text)
-            slides = [Slide(**slide) for slide in slides_data.get("slides", [])]
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"AI generation failed: {str(e)}")
+            wikipedia_content = wikipedia.summary(topic, sentences=3, auto_suggest=False)
+        except wikipedia.exceptions.PageError:
+            wikipedia_content = "No relevant Wikipedia page found."
+        except wikipedia.exceptions.DisambiguationError as e:
+            wikipedia_content = f"Multiple matches found. Please be more specific: {', '.join(e.options[:3])}"
+        except wikipedia.exceptions.WikipediaException as e:
+            wikipedia_content = f"Wikipedia API error: {str(e)}"
 
-        # Create and store lecture
-        lecture_data = Lecture(
-            title=f"{topic} Lecture",
-            description=f"Generated from video: {video.title}",
-            slides=slides,
-            video_id=videoId,
-            topic=topic
-        ).dict()
+        # Generate answer using Gemini AI
+        genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+        model = genai.GenerativeModel("gemini-1.5-pro-latest")
+        prompt = f"""
+        Answer the question '{question}' using the following information:
+        - YouTube Transcript: {transcript_text[:8000]}
+        - Wikipedia: {wikipedia_content}
+        Return a clear and concise answer.
+        """
+        response = model.generate_content(prompt)
+        return {"answer": response.text.strip()}
 
-        try:
-            lectures_collection.insert_one(lecture_data)
-        except PyMongoError as e:
-            raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
-
-        return lecture_data
-
-    except HTTPException as he:
-        raise he
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Error generating answer: {str(e)}")
 
 @app.get("/user/lectures")
 async def get_user_lectures(current_user: TokenData = Depends(get_current_user)):
