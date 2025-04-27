@@ -5,10 +5,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Loader2, AlertCircle, ChevronRight, Moon, Sun, ArrowLeft } from "lucide-react";
 import Image from "next/image";
+import { useAuth } from "../hooks/useAuth";
+
 type VideoResource = {
   title: string;
   videoId: string;
   description: string;
+  thumbnails: string
+
   channel: string;
   duration: string;
   status: "todo" | "inprogress" | "done";
@@ -23,6 +27,7 @@ export default function ResearchPage() {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const { push } = useRouter();
   const searchParams = useSearchParams();
+  const { token, getDecodedToken, isAuthenticated } = useAuth();
 
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
 
@@ -39,38 +44,45 @@ export default function ResearchPage() {
     const storageKey = `videoResources-${topicParam}`;
     const storedVideos = localStorage.getItem(storageKey);
     if (storedVideos) {
-      setVideos(JSON.parse(storedVideos));
+      const parsedVideos = JSON.parse(storedVideos);
+      setVideos(parsedVideos);
       setLoading(false);
-      return;
-    }
+    } else{
+      fetchAndSetVideos(topicParam);
+    } 
 
-    setLoading(true);
-    
-    fetch("http://localhost:8000/get_videos", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ topic: topicParam }),
-    })
-      .then((response) => {
-        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-        return response.json();
-      })
-      .then((data) => {
-        if (!data?.videos) {
-          throw new Error("Invalid video data received");
-        }
-    
-        localStorage.setItem(storageKey, JSON.stringify(data.videos));
-        setVideos(data.videos);
-      })
-      .catch((error) => {
-        console.error("Error:", error);
-        setError(error.message);
-      })
-      .finally(() => setLoading(false));
   }, [searchParams]); 
+
+  const fetchAndSetVideos = async (topicParam: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+        if (!isAuthenticated) throw new Error("Not Authenticated");
+      if (!token) throw new Error("No token provided");
+
+      const response = await fetch("/api/generate-lecture", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({ topic: topicParam }),
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+      const data = await response.json();
+      if (!data?.videos) throw new Error("Invalid video data received");      
+      const storageKey = `videoResources-${topicParam}`;
+      localStorage.setItem(storageKey, JSON.stringify(data.videos));
+      setVideos(data.videos);      
+    } catch (error: any) {
+      console.error("Error:", error);
+      setError(error.message || "An unexpected error occurred");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -334,7 +346,7 @@ export default function ResearchPage() {
               <div className="relative aspect-video">
                 <Image
                   src={`https://img.youtube.com/vi/${video.videoId}/maxresdefault.jpg`}
-                  alt={video.title}
+                  alt={`Thumbnail of ${video.title}`}
                   fill
                   className="object-cover transition-transform group-hover:scale-105"
                 />
