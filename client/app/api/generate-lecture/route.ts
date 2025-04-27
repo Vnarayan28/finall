@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, NextRequest } from 'next/server'
 import { z } from 'zod'
 
 const querySchema = z.object({
@@ -7,9 +7,38 @@ const querySchema = z.object({
 })
 
 export async function GET(req: Request) {
+
+  const token = req.headers.get('Authorization')?.split(' ')[1];
+  if (!token) {
+    return NextResponse.json({ error: 'Unauthorized: Missing token' }, { status: 401 });
+  }
+  
+  const verificationUrl = new URL('http://localhost:8000/decode');
+
   try {
     console.log('Request received:', req.url)
-
+    const verificationResponse = await fetch(verificationUrl.toString(), {
+      method: 'POST',
+      headers: {
+        'token': token,
+      },
+      signal: AbortSignal.timeout(5000),
+    });
+    console.log('Verification status:', verificationResponse.status)
+    if (!verificationResponse.ok) {
+      let errorBody
+      try {
+        errorBody = await verificationResponse.json()
+      } catch {
+        errorBody = await verificationResponse.text()
+      }
+      console.error('Verification error response:', errorBody)
+      return NextResponse.json({ error: 'Unauthorized: Invalid token' }, { status: 401 });
+    }
+    const verificationData = await verificationResponse.json();
+    console.log('Verification data:', verificationData)
+    
+    
     const { searchParams } = new URL(req.url)
     const validation = querySchema.safeParse({
       videoId: searchParams.get("videoId"),

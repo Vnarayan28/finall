@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server'
-import { GoogleGenerativeAI } from '@google/generative-ai'
-import { WikipediaQueryRun } from '@langchain/community/tools/wikipedia_query_run'
+import { NextResponse } from 'next/server';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { WikipediaQueryRun } from '@langchain/community/tools/wikipedia_query_run';
+import { jwtDecode } from 'jwt-decode';
 import { z } from 'zod'
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
@@ -34,8 +35,28 @@ async function fetchTranscript(videoId: string): Promise<string> {
   }
 }
 
+async function verifyToken(token: string | null) {
+  if (!token) {
+    return false
+  }
+
+  const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/decode`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      token,
+    },
+  })
+
+  return response.ok
+}
 
 export async function POST(req: Request) {
+  const token = req.headers.get('authorization')
+  const isTokenValid = await verifyToken(token)
+  if (!isTokenValid) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
   try {
     const body = await req.json()
     const { message, videoId, topic } = requestSchema.parse(body)

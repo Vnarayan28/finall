@@ -1,13 +1,14 @@
-from fastapi import FastAPI, HTTPException, Depends, Header
+from fastapi import FastAPI, HTTPException, Depends, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from jose import jwt, JWTError
+from jose import jwt, JWTError, jws
 from datetime import datetime, timedelta
 from pymongo import MongoClient
 import os
 from dotenv import load_dotenv
 from youtube_transcript_api import YouTubeTranscriptApi
-import google.generativeai as genai
+import google.generativeai as genai  # Assuming you're using this in generate_answer
+from fastapi import Header
 from pydantic import BaseModel
 
 load_dotenv()
@@ -64,6 +65,21 @@ def create_token(data: dict, expires_delta: timedelta = None) -> str:
     expire = datetime.utcnow() + (expires_delta or timedelta(minutes=15))
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+def decode_jwt_and_retrieve_payload(request: Request):
+    """
+    Decodes a JWT and retrieves its payload from the Authorization header.
+    """
+    authorization = request.headers.get("Authorization")
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Invalid Authorization header")
+    
+    token = authorization.split(" ")[1]
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
 
 def get_current_user(authorization: str = Header(None)) -> TokenData:
     credentials_exception = HTTPException(
@@ -190,6 +206,21 @@ async def get_user_lectures(current_user: TokenData = Depends(get_current_user))
         lecture["created_at"] = lecture["created_at"].isoformat()
     
     return {"lectures": lectures}
+
+@app.get("/decode")
+async def decode_token(token: str = Header(...)):
+    """
+    Decodes a JWT from the 'token' header and returns its payload if valid.
+    """
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return {"payload": payload}
+    except JWTError as e:
+        raise HTTPException(
+            status_code=401,
+            detail=f"Invalid token: {str(e)}",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
 
 if __name__ == "__main__":
     import uvicorn

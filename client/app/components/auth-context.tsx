@@ -3,7 +3,6 @@ import { useRouter } from 'next/navigation';
 
 interface AuthContextType {
   isAuthenticated: boolean;
-  token: string | null;
   login: (token: string) => void;
   logout: () => void;
   isLoading: boolean;
@@ -19,7 +18,7 @@ export function useAuth() {
   return context;
 }
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children }: { children: React.ReactNode,}) {
   const [token, setToken] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -49,7 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, token, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ isAuthenticated, login, logout, isLoading }}>
       {!isLoading && children}
     </AuthContext.Provider>
   );
