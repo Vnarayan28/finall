@@ -3,20 +3,130 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Loader2, AlertCircle, ChevronRight, Moon, Sun, ArrowLeft } from "lucide-react";
+import { Sparkles, Loader2, AlertCircle, Moon, Sun, ArrowLeft } from "lucide-react";
 import Image from "next/image";
-import { useAuth } from "../hooks/useAuth";
 
 type VideoResource = {
   title: string;
   videoId: string;
   description: string;
-  thumbnails: string
-
+  thumbnails: string;
   channel: string;
   duration: string;
   status: "todo" | "inprogress" | "done";
 };
+
+const LoadingState = ({ isDarkMode, topic }: { isDarkMode: boolean; topic: string }) => (
+  <motion.div
+    className={`min-h-screen flex flex-col items-center justify-center relative ${
+      isDarkMode ? "bg-gray-900" : "bg-gray-50"
+    }`}
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+  >
+    <div className={`absolute inset-0 ${
+      isDarkMode 
+        ? "bg-gradient-to-br from-purple-900/30 via-gray-900 to-blue-900/30"
+        : "bg-gradient-to-br from-purple-100/30 via-gray-50 to-blue-100/30"
+    }`}>
+      <motion.div 
+        className="absolute inset-0 bg-[length:100px_100px] opacity-10"
+        style={{
+          backgroundImage: `radial-gradient(circle at center, ${
+            isDarkMode ? "#fff" : "#000"
+          } 10%, transparent 20%)`,
+        }}
+      />
+    </div>
+
+    <motion.div
+      animate={{ rotate: 360, scale: [1, 1.2, 1] }}
+      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+      className="mb-8 z-10"
+    >
+      <Loader2 className={`h-16 w-16 ${
+        isDarkMode ? "text-purple-400" : "text-purple-600"
+      } animate-pulse`} />
+    </motion.div>
+    
+    <motion.h1 
+      className={`text-4xl font-bold bg-clip-text text-transparent ${
+        isDarkMode
+          ? "bg-gradient-to-r from-purple-300 to-blue-300"
+          : "bg-gradient-to-r from-purple-600 to-blue-600"
+      } z-10`}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6 }}
+    >
+      Curating Videos for {topic}...
+    </motion.h1>
+    
+    <motion.p 
+      className={`mt-4 text-lg z-10 ${
+        isDarkMode ? "text-gray-300/80" : "text-gray-600/80"
+      }`}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ delay: 0.4, duration: 0.5 }}
+    >
+      Scanning top educational resources
+    </motion.p>
+  </motion.div>
+);
+
+const ErrorState = ({ isDarkMode, error, onRetry }: { isDarkMode: boolean; error: string; onRetry: () => void }) => (
+  <motion.div
+    className={`min-h-screen flex flex-col items-center justify-center relative ${
+      isDarkMode ? "bg-gray-900" : "bg-gray-50"
+    }`}
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+  >
+    <div className={`absolute inset-0 ${
+      isDarkMode 
+        ? "bg-gradient-to-br from-purple-900/30 via-gray-900 to-blue-900/30"
+        : "bg-gradient-to-br from-purple-100/30 via-gray-50 to-blue-100/30"
+    }`} />
+
+    <motion.div
+      initial={{ scale: 0 }}
+      animate={{ scale: 1 }}
+      className={`p-6 rounded-full mb-6 z-10 ${
+        isDarkMode ? "bg-red-500/20" : "bg-red-400/20"
+      }`}
+    >
+      <AlertCircle className={`h-16 w-16 ${
+        isDarkMode ? "text-red-400" : "text-red-500"
+      }`} />
+    </motion.div>
+    
+    <h1 className={`text-4xl font-bold mb-4 z-10 ${
+      isDarkMode ? "text-red-300" : "text-red-500"
+    }`}>
+      Oops!
+    </h1>
+    
+    <p className={`mt-2 max-w-lg text-center text-lg z-10 ${
+      isDarkMode ? "text-gray-200/90" : "text-gray-700/90"
+    }`}>
+      {error}
+    </p>
+    
+    <motion.button
+      onClick={onRetry}
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+      className={`mt-8 px-8 py-3.5 rounded-xl font-semibold text-lg transition-all duration-200 shadow-lg z-10 ${
+        isDarkMode
+          ? "bg-purple-500/90 hover:bg-purple-600 text-white shadow-purple-500/20"
+          : "bg-purple-400 hover:bg-purple-500 text-gray-900 shadow-purple-200/20"
+      }`}
+    >
+      Try Again
+    </motion.button>
+  </motion.div>
+);
 
 export default function ResearchPage() {
   const [videos, setVideos] = useState<VideoResource[]>([]);
@@ -27,9 +137,36 @@ export default function ResearchPage() {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const { push } = useRouter();
   const searchParams = useSearchParams();
-  const { token, getDecodedToken, isAuthenticated } = useAuth();
 
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
+
+  const fetchAndSetVideos = async (topicParam: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/generate-lecture", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ topic: topicParam }),
+      });
+
+      if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+      
+      const data = await response.json();
+      if (!data?.videos) throw new Error("Invalid video data received");
+      
+      const storageKey = `videoResources-${topicParam}`;
+      localStorage.setItem(storageKey, JSON.stringify(data.videos));
+      setVideos(data.videos);      
+    } catch (error: any) {
+      console.error("Error:", error);
+      setError(error.message || "An unexpected error occurred");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     const topicParam = decodeURIComponent(searchParams.get("topic") || "");
@@ -44,163 +181,15 @@ export default function ResearchPage() {
     const storageKey = `videoResources-${topicParam}`;
     const storedVideos = localStorage.getItem(storageKey);
     if (storedVideos) {
-      const parsedVideos = JSON.parse(storedVideos);
-      setVideos(parsedVideos);
+      setVideos(JSON.parse(storedVideos));
       setLoading(false);
-    } else{
+    } else {
       fetchAndSetVideos(topicParam);
-    } 
-
-  }, [searchParams]); 
-
-  const fetchAndSetVideos = async (topicParam: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-        if (!isAuthenticated) throw new Error("Not Authenticated");
-      if (!token) throw new Error("No token provided");
-
-      const response = await fetch("/api/generate-lecture", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-        },
-        body: JSON.stringify({ topic: topicParam }),
-      });
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-      const data = await response.json();
-      if (!data?.videos) throw new Error("Invalid video data received");      
-      const storageKey = `videoResources-${topicParam}`;
-      localStorage.setItem(storageKey, JSON.stringify(data.videos));
-      setVideos(data.videos);      
-    } catch (error: any) {
-      console.error("Error:", error);
-      setError(error.message || "An unexpected error occurred");
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [searchParams]);
 
-  if (loading) {
-    return (
-      <motion.div
-        className={`min-h-screen flex flex-col items-center justify-center relative ${
-          isDarkMode ? "bg-gray-900" : "bg-gray-50"
-        }`}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-      >
-        {/* Background elements matching login page */}
-        <div className={`absolute inset-0 ${
-          isDarkMode 
-            ? "bg-gradient-to-br from-purple-900/30 via-gray-900 to-blue-900/30"
-            : "bg-gradient-to-br from-purple-100/30 via-gray-50 to-blue-100/30"
-        }`}>
-          <motion.div 
-            className="absolute inset-0 bg-[length:100px_100px] opacity-10"
-            style={{
-              backgroundImage: `radial-gradient(circle at center, ${
-                isDarkMode ? "#fff" : "#000"
-              } 10%, transparent 20%)`,
-            }}
-          />
-        </div>
-
-        <motion.div
-          animate={{ rotate: 360, scale: [1, 1.2, 1] }}
-          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-          className="mb-8 z-10"
-        >
-          <Loader2 className={`h-16 w-16 ${
-            isDarkMode ? "text-purple-400" : "text-purple-600"
-          } animate-pulse`} />
-        </motion.div>
-        
-        <motion.h1 
-          className={`text-4xl font-bold bg-clip-text text-transparent ${
-            isDarkMode
-              ? "bg-gradient-to-r from-purple-300 to-blue-300"
-              : "bg-gradient-to-r from-purple-600 to-blue-600"
-          } z-10`}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-        >
-          Curating Videos for {topic}...
-        </motion.h1>
-        
-        <motion.p 
-          className={`mt-4 text-lg z-10 ${
-            isDarkMode ? "text-gray-300/80" : "text-gray-600/80"
-          }`}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.4, duration: 0.5 }}
-        >
-          Scanning top educational resources
-        </motion.p>
-      </motion.div>
-    );
-  }
-
-  if (error) {
-    return (
-      <motion.div
-        className={`min-h-screen flex flex-col items-center justify-center relative ${
-          isDarkMode ? "bg-gray-900" : "bg-gray-50"
-        }`}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-      >
-        {}
-        <div className={`absolute inset-0 ${
-          isDarkMode 
-            ? "bg-gradient-to-br from-purple-900/30 via-gray-900 to-blue-900/30"
-            : "bg-gradient-to-br from-purple-100/30 via-gray-50 to-blue-100/30"
-        }`} />
-
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          className={`p-6 rounded-full mb-6 z-10 ${
-            isDarkMode ? "bg-red-500/20" : "bg-red-400/20"
-          }`}
-        >
-          <AlertCircle className={`h-16 w-16 ${
-            isDarkMode ? "text-red-400" : "text-red-500"
-          }`} />
-        </motion.div>
-        
-        <h1 className={`text-4xl font-bold mb-4 z-10 ${
-          isDarkMode ? "text-red-300" : "text-red-500"
-        }`}>
-          Oops!
-        </h1>
-        
-        <p className={`mt-2 max-w-lg text-center text-lg z-10 ${
-          isDarkMode ? "text-gray-200/90" : "text-gray-700/90"
-        }`}>
-          {error}
-        </p>
-        
-        <motion.button
-          onClick={() => window.location.reload()}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className={`mt-8 px-8 py-3.5 rounded-xl font-semibold text-lg transition-all duration-200 shadow-lg z-10 ${
-            isDarkMode
-              ? "bg-purple-500/90 hover:bg-purple-600 text-white shadow-purple-500/20"
-              : "bg-purple-400 hover:bg-purple-500 text-gray-900 shadow-purple-200/20"
-          }`}
-        >
-          Try Again
-        </motion.button>
-      </motion.div>
-    );
-  }
+  if (loading) return <LoadingState isDarkMode={isDarkMode} topic={topic} />;
+  if (error) return <ErrorState isDarkMode={isDarkMode} error={error} onRetry={() => fetchAndSetVideos(topic)} />;
 
   return (
     <motion.main
@@ -211,7 +200,6 @@ export default function ResearchPage() {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.8 }}
     >
-      {/* Background elements matching login page */}
       <div className={`absolute inset-0 ${
         isDarkMode 
           ? "bg-gradient-to-br from-purple-900/30 via-gray-900 to-blue-900/30"
@@ -227,7 +215,6 @@ export default function ResearchPage() {
         />
       </div>
 
-      {/* Floating particles */}
       <div className="absolute inset-0 pointer-events-none z-0">
         {[...Array(30)].map((_, i) => (
           <motion.div
@@ -256,7 +243,6 @@ export default function ResearchPage() {
         ))}
       </div>
 
-      {/* Back Button */}
       <motion.button
         onClick={() => push('/')}
         className={`absolute top-6 left-6 p-2 rounded-full z-50 ${
@@ -268,7 +254,6 @@ export default function ResearchPage() {
         <ArrowLeft size={24} />
       </motion.button>
 
-      {/* Theme Toggle */}
       <motion.button
         onClick={toggleTheme}
         className={`absolute top-6 right-6 p-3 rounded-full z-50 ${
@@ -286,9 +271,7 @@ export default function ResearchPage() {
         )}
       </motion.button>
 
-      {/* Main Content */}
       <div className="container mx-auto p-6 md:p-12 lg:p-16 relative z-10">
-        {/* Header */}
         <motion.div 
           className="mb-12 text-center space-y-4"
           initial={{ opacity: 0, y: -20 }}
@@ -324,7 +307,6 @@ export default function ResearchPage() {
           </p>
         </motion.div>
 
-        {/* Video Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {videos.map((video, index) => (
             <motion.div
@@ -391,7 +373,6 @@ export default function ResearchPage() {
           ))}
         </div>
 
-        {/* Selected Video Button */}
         <AnimatePresence>
           {selectedVideo && (
             <motion.div

@@ -1,5 +1,4 @@
 "use client";
-
 import { useState } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { Sparkles, Brain, BookOpenText, Mic, PlayCircle } from "lucide-react";
@@ -43,10 +42,10 @@ export default function Home() {
     <main className={`relative min-h-screen flex flex-col items-center justify-center px-4 sm:px-10 py-20 overflow-hidden ${
       isDarkMode ? "text-white" : "text-gray-900"
     }`}>
-      {/* Navigation Bar - Removed login/signup buttons from here */}
+      {/* Navigation Bar */}
       <NavBarLanding isDarkMode={isDarkMode} toggleTheme={toggleTheme} />
 
-      {/* Background and animation elements remain unchanged */}
+      {/* Background and animation elements */}
       <div className={`absolute inset-0 z-0 ${
         isDarkMode
           ? "bg-gradient-to-br from-purple-900 via-black to-blue-900"
@@ -61,7 +60,7 @@ export default function Home() {
         />
       </div>
 
-      {/* Floating particles and geometric shapes remain unchanged */}
+      {/* Floating particles and geometric shapes */}
       <motion.div
         className="absolute inset-0 z-0"
         initial={{ opacity: 0 }}
@@ -195,7 +194,7 @@ export default function Home() {
           </motion.p>
         </motion.div>
 
-        {/* Holographic CTA Button - Now the only entry point */}
+        {/* CTA Button */}
         <motion.div
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -230,7 +229,7 @@ export default function Home() {
         </motion.div>
       </div>
 
-      {/* Auth Selection Modal - Now handles all auth flows */}
+      {/* Auth Selection Modal */}
       <Dialog
         open={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
@@ -297,7 +296,7 @@ export default function Home() {
         </div>
       </Dialog>
 
-      {/* Features grid and scroll indicator remain unchanged */}
+      {/* Features grid */}
       <motion.div
         className="mt-24 w-full max-w-7xl px-4"
         initial={{ opacity: 0 }}
