@@ -179,16 +179,29 @@ async def login(user: UserLogin):
 
 @app.get("/api/generate-lecture")
 async def generate_lecture(topic: str):
+    import requests, os
+
     try:
-        import requests
+        response = requests.get(
+            "https://www.googleapis.com/youtube/v3/search",
+            params={
+                "part": "snippet",
+                "q": topic,
+                "key": os.getenv("YOUTUBE_API_KEY"),
+                "maxResults": 5,
+                "type": "video"
+            }
+        )
+
+        data = response.json()
         items = data.get("items", [])
         videos = []
 
         for item in items:
             video_id = item.get("id", {}).get("videoId")
             snippet = item.get("snippet", {})
-            if not video_id or not snippet:
-                continue
+            if not video_id:
+                continue  # Skip items without a valid videoId
 
             videos.append({
                 "videoId": video_id,
@@ -196,15 +209,15 @@ async def generate_lecture(topic: str):
                 "description": snippet.get("description", ""),
                 "thumbnails": snippet.get("thumbnails", {}).get("high", {}).get("url", ""),
                 "channel": snippet.get("channelTitle", ""),
-                "duration": "N/A",
+                "duration": "N/A",  # Optional enhancement
                 "status": "todo"
             })
 
         return { "videos": videos }
 
-
     except Exception as e:
-        return {"error": str(e)}
+        return { "error": str(e) }
+
 
 
 @app.get("/generate-answer")
