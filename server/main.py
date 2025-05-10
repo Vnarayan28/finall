@@ -175,8 +175,6 @@ async def login(user: UserLogin):
     
     return {"message": "Login successful", "token": token}
 
-
-
 @app.get("/api/generate-lecture")
 async def generate_lecture(topic: str):
     import requests, os
@@ -188,7 +186,7 @@ async def generate_lecture(topic: str):
                 "part": "snippet",
                 "q": topic,
                 "key": os.getenv("YOUTUBE_API_KEY"),
-                "maxResults": 5,
+                "maxResults": 20,
                 "type": "video"
             }
         )
@@ -201,7 +199,7 @@ async def generate_lecture(topic: str):
             video_id = item.get("id", {}).get("videoId")
             snippet = item.get("snippet", {})
             if not video_id:
-                continue  # Skip items without a valid videoId
+                continue 
 
             videos.append({
                 "videoId": video_id,
@@ -209,7 +207,7 @@ async def generate_lecture(topic: str):
                 "description": snippet.get("description", ""),
                 "thumbnails": snippet.get("thumbnails", {}).get("high", {}).get("url", ""),
                 "channel": snippet.get("channelTitle", ""),
-                "duration": "N/A",  # Optional enhancement
+                "duration": readable_duration,
                 "status": "todo"
             })
 
