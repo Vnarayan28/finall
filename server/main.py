@@ -7,11 +7,19 @@ from pymongo import MongoClient
 import os
 from dotenv import load_dotenv
 from youtube_transcript_api import YouTubeTranscriptApi
-import google.generativeai as genai  # Assuming you're using this in generate_answer
+import google.generativeai as genai 
 from fastapi import Header
 from pydantic import BaseModel
+import time
+import json
+import asyncio
+import logging
+
 
 load_dotenv()
+
+
+logger = logging.getLogger("uvicorn.error")
 
 app = FastAPI()
 
@@ -21,7 +29,6 @@ db = client[os.getenv("DB_NAME")]
 users_collection = db["users"]
 lectures_collection = db["lectures"]
 
-# JWT Configuration
 SECRET_KEY = os.getenv("JWT_SECRET")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 1 day
@@ -33,6 +40,33 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+from googleapiclient.discovery import build
+
+YT_API_KEY = os.getenv("YOUTUBE_API_KEY")
+class YouTubeSearch:
+    @staticmethod
+    async def search_videos(topic: str):
+        youtube = build("youtube", "v3", developerKey=YT_API_KEY)
+        req = youtube.search().list(
+            part="snippet",
+            q=topic,
+            type="video",
+            maxResults=10
+        )
+        res = req.execute()
+        videos = []
+        for item in res["items"]:
+            videos.append({
+                "videoId": item["id"]["videoId"],
+                "title": item["snippet"]["title"],
+                "description": item["snippet"]["description"],
+                "thumbnails": item["snippet"]["thumbnails"]["high"]["url"],
+                "channel": item["snippet"]["channelTitle"],
+                "duration": "N/A"
+            })
+        return videos
+
 
 class UserCreate(BaseModel):
     username: str
@@ -141,26 +175,37 @@ async def login(user: UserLogin):
     
     return {"message": "Login successful", "token": token}
 
-@app.post("/get_videos")
-async def get_videos(topic: str):
+
+
+@app.get("/api/generate-lecture")
+async def generate_lecture(topic: str):
     try:
         import requests
-        response = requests.get(
-            "https://www.googleapis.com/youtube/v3/search",
-            params={
-                "part": "snippet",
-                "q": topic,
-                "key": os.getenv("YOUTUBE_API_KEY"),
-                "maxResults": 5,
-                "type": "video"
-            }
-        )
+        items = data.get("items", [])
+        videos = []
 
-        data = response.json()
-        return {"videos": data.get("items", [])}
+        for item in items:
+            video_id = item.get("id", {}).get("videoId")
+            snippet = item.get("snippet", {})
+            if not video_id or not snippet:
+                continue
+
+            videos.append({
+                "videoId": video_id,
+                "title": snippet.get("title", ""),
+                "description": snippet.get("description", ""),
+                "thumbnails": snippet.get("thumbnails", {}).get("high", {}).get("url", ""),
+                "channel": snippet.get("channelTitle", ""),
+                "duration": "N/A",
+                "status": "todo"
+            })
+
+        return { "videos": videos }
+
 
     except Exception as e:
         return {"error": str(e)}
+
 
 @app.get("/generate-answer")
 async def generate_answer(videoId: str, topic: str, question: str):
@@ -221,6 +266,9 @@ async def decode_token(token: str = Header(...)):
             detail=f"Invalid token: {str(e)}",
             headers={"WWW-Authenticate": "Bearer"}
         )
+
+
+
 
 if __name__ == "__main__":
     import uvicorn

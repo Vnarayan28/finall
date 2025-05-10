@@ -144,29 +144,23 @@ export default function ResearchPage() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch("/api/generate-lecture", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ topic: topicParam }),
-      });
-
-      if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+      const response = await fetch(`/api/generate-lecture?topic=${encodeURIComponent(topicParam)}`);
+      
+      if (!response.ok) throw new Error(`Failed to fetch videos: ${response.status}`);
       
       const data = await response.json();
-      if (!data?.videos) throw new Error("Invalid video data received");
+      if (!data?.videos) throw new Error("No videos found for this topic");
       
       const storageKey = `videoResources-${topicParam}`;
       localStorage.setItem(storageKey, JSON.stringify(data.videos));
-      setVideos(data.videos);      
+      setVideos(data.videos);
     } catch (error: any) {
-      console.error("Error:", error);
-      setError(error.message || "An unexpected error occurred");
+      setError(error.message || "Failed to load videos");
     } finally {
       setLoading(false);
     }
-  };
+  };  
+    
 
   useEffect(() => {
     const topicParam = decodeURIComponent(searchParams.get("topic") || "");
