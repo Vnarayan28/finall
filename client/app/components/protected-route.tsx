@@ -1,5 +1,4 @@
 import { useRouter } from 'next/navigation';
-import { useAuth } from '../components/auth-context';
 import { useEffect } from 'react';
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
