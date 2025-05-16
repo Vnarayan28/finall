@@ -298,21 +298,18 @@ async def generate_answer(videoId: str, topic: str, question: str):
 
         wikipedia_content = ""
         try:
-            # Limit summary length to avoid overly long prompts
-            wikipedia_content = wikipedia.summary(topic, sentences=5, auto_suggest=False) 
+            wikipedia_content = wikipedia.summary(topic, sentences=5, auto_suggest=False)
         except wikipedia.exceptions.PageError:
             wikipedia_content = "No relevant Wikipedia page found for the topic."
         except wikipedia.exceptions.DisambiguationError as e:
-            # Provide a few options if it's a disambiguation page
             options = e.options[:3]
             wikipedia_content = f"The topic '{topic}' is ambiguous. Possible matches: {', '.join(options)}. Please be more specific."
-        except wikipedia.exceptions.WikipediaException as e: # Catch other Wikipedia specific errors
+        except wikipedia.exceptions.WikipediaException as e:
             logger.warning(f"Wikipedia lookup error for topic '{topic}': {str(e)}")
             wikipedia_content = "Could not retrieve information from Wikipedia due to an error."
-        except Exception as e: # General catch for unexpected errors with Wikipedia
+        except Exception as e:
             logger.error(f"Unexpected error during Wikipedia lookup for topic '{topic}': {str(e)}")
             wikipedia_content = "An unexpected error occurred while fetching Wikipedia content."
-
 
         GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
         if not GEMINI_API_KEY:
@@ -320,10 +317,8 @@ async def generate_answer(videoId: str, topic: str, question: str):
             raise HTTPException(status_code=500, detail="Generative AI service not configured.")
 
         genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel("gemini-1.5-pro-latest")
-        
-        # Truncate transcript text to avoid exceeding model token limits
-        # A common limit is around 8k-32k tokens. 20000 chars is a rough proxy.
+        model = genai.GenerativeModel("gemini-1.5-flash")
+
         max_transcript_chars = 20000 
         prompt = (
             f"Based on the following information, please answer the question: '{question}'.\n\n"
@@ -331,9 +326,13 @@ async def generate_answer(videoId: str, topic: str, question: str):
             f"From Wikipedia (Topic: {topic}):\n\"\"\"\n{wikipedia_content}\n\"\"\"\n\n"
             "Provide a concise and direct answer to the question. If the information is insufficient, state that."
         )
-        
-        response = model.generate_content(prompt)
-        return {"answer": response.text.strip()}
+
+        try:
+            response = model.generate_content(prompt)
+            return {"answer": response.text.strip()}
+        except ResourceExhausted as e:
+            logger.warning(f"Gemini API quota exceeded: {str(e)}")
+            raise HTTPException(status_code=429, detail="Gemini API quota exceeded. Please wait and try again.")
 
     except YouTubeTranscriptApi.CouldNotRetrieveTranscript as e:
         logger.warning(f"Could not retrieve transcript for videoId {videoId}: {str(e)}")

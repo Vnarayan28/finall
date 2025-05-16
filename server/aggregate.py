@@ -34,7 +34,7 @@ class LectureGenerator:
     def _call_gemini(self, prompt: str) -> str:
         """Calls Gemini API synchronously (Flask is sync by default)."""
         genai.configure(api_key=self.api_keys[self.current_key])
-        model = genai.GenerativeModel("gemini-1.5-pro-latest")
+        model = genai.GenerativeModel("gemini-1.5-flash")
 
         try:
             response = model.generate_content(prompt)

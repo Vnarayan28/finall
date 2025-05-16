@@ -22,7 +22,7 @@ class LlmClient:
 
     def __init__(self):
         genai.configure(api_key=os.environ.get("GOOGLE_API_KEY"))
-        self.client = genai.GenerativeModel("gemini-1.5-pro-latest")
+        self.client = genai.GenerativeModel("gemini-1.5-flash")
         self.prompt = hub.pull("hwchase17/openai-tools-agent")
         self.prompt.messages[0].prompt.template = agentPrompt
         self.tools = [

@@ -49,7 +49,7 @@ google = Agent(name="google", seed="google seed")
 
 # Gemini AI Configuration
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-model = genai.GenerativeModel("gemini-1.5-pro-latest")
+model = genai.GenerativeModel("gemini-1.5-flash")
 
 @google.on_message(model=Message)
 async def google_message_handler(ctx: Context, sender: str, msg: Message):

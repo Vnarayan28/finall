@@ -1,142 +1,201 @@
-'use client'
-
-import { useState, useRef, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Send, Bot, User, Loader2 } from 'lucide-react'
-
-type Message = {
-  role: 'user' | 'assistant'
-  content: string
-}
+'use client';
+import { useState, useRef, useEffect } from 'react';
+import { FaRobot, FaUserCircle, FaSpinner, FaExclamationCircle } from 'react-icons/fa';
 
 interface ChatBotProps {
-  videoId: string
-  topic: string
+  videoId: string;
+  topic: string;
+}
+
+interface Message {
+  text: string;
+  isUser: boolean;
+  timestamp?: Date;
 }
 
 export default function ChatBot({ videoId, topic }: ChatBotProps) {
-  const [messages, setMessages] = useState<Message[]>([])
-  const [input, setInput] = useState('')
-  const [loading, setLoading] = useState(false)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   useEffect(() => {
-    scrollToBottom()
-  }, [messages])
+    scrollToBottom();
+  }, [messages]);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!input.trim()) return
-
-    setLoading(true)
-    const newMessage: Message = { role: 'user', content: input }
-    setMessages(prev => [...prev, newMessage])
-    setInput('')
+    e.preventDefault();
+    if (!input.trim() || isLoading) return;
 
     try {
+      setIsLoading(true);
+      setError(null);
+
+      const userMessage = {
+        text: input,
+        isUser: true,
+        timestamp: new Date()
+      };
+      setMessages((prev) => [...prev, userMessage]);
+
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          message: input,
-          videoId,
-          topic
-        })
-      })
+        body: JSON.stringify({ message: input, videoId, topic }),
+      });
 
-      if (!response.ok) throw new Error('Failed to get response')
-      const data = await response.json()
-      
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: data.text || 'Sorry, no response was generated.'
-      }])      
-    } catch (error: any) {
-      console.error('Chat error:', error)
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: '❌ Error: ' + (error.message || 'Something went wrong.')
-      }])
+      if (!response.ok) {
+        const errorData = await response.json();
+        const errorMsg = errorData.detail || errorData.error || 'Failed to get response';
+        throw new Error(errorMsg);
+      }
+
+      const { text } = await response.json();
+      setMessages((prev) => [
+        ...prev,
+        {
+          text,
+          isUser: false,
+          timestamp: new Date()
+        }
+      ]);
+      setInput('');
+    } catch (err: any) {
+      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
+      setError(errorMessage);
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          text: `⚠️ ${errorMessage}`,
+          isUser: false,
+          timestamp: new Date()
+        }
+      ]);
+
+      if (errorMessage.includes('quota')) {
+        setTimeout(() => {
+          setMessages((prev) => [
+            ...prev,
+            {
+              text: "⏳ You’ve hit the limit. Please try again in 30 seconds.",
+              isUser: false,
+              timestamp: new Date()
+            }
+          ]);
+        }, 1000);
+      }
     } finally {
-      setLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-xl shadow-lg border border-gray-200">
-      <div className="p-4 border-b border-gray-200">
-        <h3 className="text-lg font-semibold flex items-center gap-2">
-          <Bot className="h-5 w-5 text-purple-600" />
-          Lecture Assistant (Powered by Gemini)
+    <div className="flex flex-col h-full bg-gray-900 rounded-xl shadow-2xl overflow-hidden border border-gray-700">
+      {/* Header */}
+      <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
+        <h3 className="text-white font-semibold flex items-center gap-2">
+          <FaRobot className="text-purple-400" />
+          Lecture Assistant
         </h3>
-        <p className="text-sm text-gray-500 mt-1">
-          Ask questions about {topic} using video content and external knowledge
-        </p>
+        <p className="text-sm text-gray-400 truncate">Topic: {topic}</p>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((message, index) => (
-          <motion.div
-            key={index}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+      {/* Messages Area */}
+      <div className="flex-1 p-4 overflow-y-auto space-y-4">
+        {messages.length === 0 && !isLoading && (
+          <div className="text-center text-gray-500 italic mt-8">
+            Start a conversation by asking a question about the lecture.
+          </div>
+        )}
+
+        {messages.map((msg, i) => (
+          <div
+            key={i}
+            className={`flex items-start gap-2 ${msg.isUser ? 'justify-end' : 'justify-start'}`}
           >
-            <div className={`max-w-[80%] p-3 rounded-lg ${
-              message.role === 'user' 
-                ? 'bg-purple-600 text-white' 
-                : 'bg-gray-100 text-gray-800'
-            }`}>
-              <div className="flex items-center gap-2 mb-1">
-                {message.role === 'user' ? (
-                  <User className="h-4 w-4" />
-                ) : (
-                  <Bot className="h-4 w-4" />
-                )}
-                <span className="text-xs font-medium">
-                  {message.role === 'user' ? 'You' : 'Assistant'}
-                </span>
+            {!msg.isUser && (
+              <div className="mt-1 text-purple-400">
+                <FaRobot size={20} />
               </div>
-              <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+            )}
+            <div
+              className={`max-w-xs sm:max-w-md p-3 rounded-2xl shadow-md ${
+                msg.isUser
+                  ? 'bg-purple-600 text-white rounded-br-none'
+                  : 'bg-gray-800 text-gray-200 rounded-bl-none'
+              }`}
+            >
+              <p className="whitespace-pre-wrap">{msg.text}</p>
+              {msg.timestamp && (
+                <span className="text-xs opacity-70 mt-1 block text-right">
+                  {new Date(msg.timestamp).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </span>
+              )}
             </div>
-          </motion.div>
+            {msg.isUser && (
+              <div className="mt-1 text-gray-400">
+                <FaUserCircle size={20} />
+              </div>
+            )}
+          </div>
         ))}
-        {loading && (
-          <div className="flex justify-start">
-            <div className="bg-gray-100 p-3 rounded-lg flex items-center gap-2">
-              <Loader2 className="h-4 w-4 animate-spin text-purple-600" />
-              <span className="text-sm text-gray-600">
-                Analyzing video transcript and knowledge sources...
-              </span>
+
+        {isLoading && (
+          <div className="flex items-start gap-2 justify-start">
+            <div className="mt-1 text-purple-400">
+              <FaRobot size={20} />
+            </div>
+            <div className="bg-gray-800 p-3 rounded-2xl shadow-md">
+              <div className="flex items-center gap-2">
+                <FaSpinner className="animate-spin text-purple-500" />
+                <span>Thinking...</span>
+              </div>
             </div>
           </div>
         )}
+
         <div ref={messagesEndRef} />
       </div>
 
-      <form onSubmit={handleSubmit} className="p-4 border-t border-gray-200">
+      {/* Input Area */}
+      <form onSubmit={handleSubmit} className="p-4 border-t border-gray-700 bg-gray-800">
         <div className="flex gap-2">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={`Ask about ${topic}...`}
-            className="flex-1 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-            disabled={loading}
+            placeholder="Ask about the lecture..."
+            className="flex-1 bg-gray-900 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-70 transition-all"
+            disabled={isLoading}
           />
           <button
             type="submit"
-            disabled={loading}
-            className="p-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors"
+            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg disabled:opacity-50 transition-colors flex items-center gap-2"
+            disabled={isLoading}
           >
-            <Send className="h-5 w-5" />
+            {isLoading ? (
+              <FaSpinner className="animate-spin" />
+            ) : (
+              'Send'
+            )}
           </button>
         </div>
+        {error && (
+          <div className="mt-2 text-red-400 text-sm flex items-center gap-1">
+            <FaExclamationCircle />
+            <span>{error}</span>
+          </div>
+        )}
       </form>
     </div>
-  )
+  );
 }
