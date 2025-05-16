@@ -1,6 +1,6 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
-import { FaRobot, FaUserCircle, FaSpinner, FaExclamationCircle } from 'react-icons/fa';
+import { FaRobot, FaUserCircle, FaSpinner, FaExclamationCircle, FaPlay, FaPause } from 'react-icons/fa';
 
 interface ChatBotProps {
   videoId: string;
@@ -13,11 +13,20 @@ interface Message {
   timestamp?: Date;
 }
 
+interface SpeechState {
+  isSpeaking: boolean;
+  currentUtterance: SpeechSynthesisUtterance | null;
+}
+
 export default function ChatBot({ videoId, topic }: ChatBotProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [speechState, setSpeechState] = useState<SpeechState>({
+    isSpeaking: false,
+    currentUtterance: null
+  });
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -27,6 +36,42 @@ export default function ChatBot({ videoId, topic }: ChatBotProps) {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  const speak = (text: string) => {
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+
+    utterance.onstart = () => {
+      setSpeechState({ isSpeaking: true, currentUtterance: utterance });
+    };
+
+    utterance.onend = utterance.onerror = () => {
+      setSpeechState({ isSpeaking: false, currentUtterance: null });
+    };
+
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const toggleSpeech = (text: string) => {
+    if (speechState.isSpeaking) {
+      window.speechSynthesis.pause();
+      setSpeechState(prev => ({ ...prev, isSpeaking: false }));
+    } else if (speechState.currentUtterance) {
+      window.speechSynthesis.resume();
+      setSpeechState(prev => ({ ...prev, isSpeaking: true }));
+    } else {
+      speak(text);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      window.speechSynthesis.cancel();
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,9 +140,43 @@ export default function ChatBot({ videoId, topic }: ChatBotProps) {
     }
   };
 
+  const MessageBubble = ({ msg }: { msg: Message }) => (
+    <div
+      className={`max-w-xs sm:max-w-md p-3 rounded-2xl shadow-md ${
+        msg.isUser
+          ? 'bg-purple-600 text-white rounded-br-none'
+          : 'bg-gray-800 text-gray-200 rounded-bl-none'
+      }`}
+    >
+      <div className="flex justify-between items-start gap-2">
+        <p className="whitespace-pre-wrap flex-1">{msg.text}</p>
+        {!msg.isUser && (
+          <button
+            onClick={() => toggleSpeech(msg.text)}
+            className="text-gray-300 hover:text-purple-400 transition-colors ml-2"
+            aria-label={speechState.isSpeaking ? "Pause speech" : "Play speech"}
+          >
+            {speechState.isSpeaking && speechState.currentUtterance?.text === msg.text ? (
+              <FaPause className="shrink-0" />
+            ) : (
+              <FaPlay className="shrink-0" />
+            )}
+          </button>
+        )}
+      </div>
+      {msg.timestamp && (
+        <span className="text-xs opacity-70 mt-1 block text-right">
+          {new Date(msg.timestamp).toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit'
+          })}
+        </span>
+      )}
+    </div>
+  );
+
   return (
     <div className="flex flex-col h-full bg-gray-900 rounded-xl shadow-2xl overflow-hidden border border-gray-700">
-      {/* Header */}
       <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
         <h3 className="text-white font-semibold flex items-center gap-2">
           <FaRobot className="text-purple-400" />
@@ -106,11 +185,15 @@ export default function ChatBot({ videoId, topic }: ChatBotProps) {
         <p className="text-sm text-gray-400 truncate">Topic: {topic}</p>
       </div>
 
-      {/* Messages Area */}
       <div className="flex-1 p-4 overflow-y-auto space-y-4">
         {messages.length === 0 && !isLoading && (
           <div className="text-center text-gray-500 italic mt-8">
             Start a conversation by asking a question about the lecture.
+            {typeof window !== 'undefined' && !window.speechSynthesis && (
+              <div className="text-red-400 text-sm mt-2">
+                Note: Text-to-speech is not supported in your browser
+              </div>
+            )}
           </div>
         )}
 
@@ -124,23 +207,7 @@ export default function ChatBot({ videoId, topic }: ChatBotProps) {
                 <FaRobot size={20} />
               </div>
             )}
-            <div
-              className={`max-w-xs sm:max-w-md p-3 rounded-2xl shadow-md ${
-                msg.isUser
-                  ? 'bg-purple-600 text-white rounded-br-none'
-                  : 'bg-gray-800 text-gray-200 rounded-bl-none'
-              }`}
-            >
-              <p className="whitespace-pre-wrap">{msg.text}</p>
-              {msg.timestamp && (
-                <span className="text-xs opacity-70 mt-1 block text-right">
-                  {new Date(msg.timestamp).toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
-                </span>
-              )}
-            </div>
+            <MessageBubble msg={msg} />
             {msg.isUser && (
               <div className="mt-1 text-gray-400">
                 <FaUserCircle size={20} />
@@ -158,6 +225,7 @@ export default function ChatBot({ videoId, topic }: ChatBotProps) {
               <div className="flex items-center gap-2">
                 <FaSpinner className="animate-spin text-purple-500" />
                 <span>Thinking...</span>
+                <FaPlay className="text-purple-400 animate-pulse" />
               </div>
             </div>
           </div>
@@ -166,7 +234,6 @@ export default function ChatBot({ videoId, topic }: ChatBotProps) {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Area */}
       <form onSubmit={handleSubmit} className="p-4 border-t border-gray-700 bg-gray-800">
         <div className="flex gap-2">
           <input
