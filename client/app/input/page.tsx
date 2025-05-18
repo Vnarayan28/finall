@@ -1,297 +1,157 @@
 "use client";
 import React, { useState } from "react";
 import { motion, useTransform, useScroll } from "framer-motion";
-import { Sparkles, Moon, Sun, Home, User, Info } from "lucide-react";
+import { Sparkles, Search, Zap } from "lucide-react"; // Removed unused icons
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+// Assuming these components are correctly pathed
+import AnimatedGradientBg from "../components/AnimatedGradientBg"; 
+import NavBarLanding from "../NavBarLanding"; // Adjust path if your landing page is in a group like (landing) or a different location
 
-export default function Input() {
+export default function InputPage() {
   const [topic, setTopic] = useState("");
   const [isFocused, setIsFocused] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(true);
-  const { scrollY } = useScroll();
+  const [isDarkMode, setIsDarkMode] = useState(true); 
+  const { scrollY } = useScroll(); 
   const { push } = useRouter();
 
-  const rotate = useTransform(scrollY, [0, 100], [0, 5]);
-  const scale = useTransform(scrollY, [0, 100], [1, 1.02]);
+  const rotateIcon = useTransform(scrollY, [0, 100], [0, 15], { clamp: false });
+  const scalePage = useTransform(scrollY, [0, 100], [1, 0.98], { clamp: false });
 
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
 
-  const handleButtonClick = async () => {
-    if (!topic) return;
+  const handleGenerateClick = async () => {
+    if (!topic.trim()) return;
     try {
-      push(`/research?topic=${encodeURIComponent(topic)}`);
+      push(`/research?topic=${encodeURIComponent(topic.trim())}`);
     } catch (error) {
       console.error("Failed to navigate: ", error);
     }
   };
+  
+  const pageVariants = {
+    initial: { opacity: 0, scale: 0.98 },
+    animate: { opacity: 1, scale: 1, transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] } },
+  };
+
+  const itemVariants = {
+    initial: { opacity: 0, y: 20 },
+    animate: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 100, damping: 15, delay: 0.2 } },
+  };
 
   return (
-    <motion.main 
-      className={`min-h-screen flex flex-col items-center justify-center relative overflow-hidden ${
-        isDarkMode ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-900"
+    <motion.div 
+      className={`min-h-screen flex flex-col items-center justify-center relative overflow-hidden p-4 selection:bg-pink-500 selection:text-white ${
+        isDarkMode ? "dark" : ""
       }`}
-      style={{ scale }}
+      style={{ scale: scalePage }} 
+      variants={pageVariants}
+      initial="initial"
+      animate="animate"
     >
-      {/* Navigation Bar */}
-      <nav className={`fixed top-0 left-0 right-0 z-50 backdrop-blur-lg ${
-        isDarkMode ? "bg-gray-900/70" : "bg-white/70"
-      }`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-8">
-              <Link href="/" className={`flex items-center space-x-2 transition-colors duration-200 ${
-                isDarkMode ? "hover:text-purple-400" : "hover:text-purple-600"
-              }`}>
-                <Home className="w-5 h-5" />
-                <span className="font-medium">Home</span>
-              </Link>
-              <Link href="/about" className={`flex items-center space-x-2 transition-colors duration-200 ${
-                isDarkMode ? "hover:text-purple-400" : "hover:text-purple-600"
-              }`}>
-                <Info className="w-5 h-5" />
-                <span className="font-medium">About</span>
-              </Link>
-              <Link href="/profile" className={`flex items-center space-x-2 transition-colors duration-200 ${
-                isDarkMode ? "hover:text-purple-400" : "hover:text-purple-600"
-              }`}>
-                <User className="w-5 h-5" />
-                <span className="font-medium">Profile</span>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      {/* Theme Toggle Button */}
-      <button
-        onClick={toggleTheme}
-        className={`fixed top-4 right-4 p-3 rounded-full z-50 transition-colors duration-300 ${
-          isDarkMode 
-            ? "bg-purple-600 hover:bg-purple-700" 
-            : "bg-yellow-400 hover:bg-yellow-500"
-        }`}
-      >
-        {isDarkMode ? (
-          <Moon className="w-6 h-6 text-white" />
-        ) : (
-          <Sun className="w-6 h-6 text-gray-900" />
-        )}
-      </button>
-
-      {/* Rest of the existing components... */}
-      {/* Dynamic Background Layers */}
-      <div className={`absolute inset-0 ${
-        isDarkMode 
-          ? "bg-gradient-to-br from-purple-900/30 via-gray-900 to-pink-900/30"
-          : "bg-gradient-to-br from-purple-100/30 via-gray-50 to-pink-100/30"
-      }`}>
-        <motion.div 
-          className="absolute inset-0 bg-[length:100px_100px] opacity-10"
-          style={{
-            backgroundImage: `radial-gradient(circle at center, ${
-              isDarkMode ? "#fff" : "#000"
-            } 10%, transparent 20%)`,
-            y: useTransform(scrollY, [0, 300], [0, 100]),
-          }}
-        />
-      </div>
-
-      {/* Floating Holographic Particles */}
-      <div className="absolute inset-0 pointer-events-none z-0">
-        {[...Array(30)].map((_, i) => (
-          <motion.div
-            key={i}
-            className={`absolute w-1.5 h-1.5 rounded-full blur-[1px] ${
-              isDarkMode
-                ? "bg-gradient-to-r from-purple-400 to-pink-400"
-                : "bg-gradient-to-r from-purple-200 to-pink-200"
-            }`}
-            initial={{
-              scale: 0,
-              x: Math.random() * 100 - 50 + "%",
-              y: Math.random() * 100 - 50 + "%",
-            }}
-            animate={{
-              scale: [0, 1, 0],
-              opacity: [0, 0.8, 0],
-            }}
-            transition={{
-              duration: 4 + Math.random() * 4,
-              repeat: Infinity,
-              delay: Math.random() * 2,
-              ease: "easeInOut"
-            }}
-          />
-        ))}
-      </div>
-
-      {/* Animated Gradient Blobs */}
-      <motion.div
-        className={`absolute w-[600px] h-[600px] rounded-full blur-[150px] -top-96 -left-96 ${
-          isDarkMode
-            ? "bg-gradient-to-r from-purple-500/20 to-pink-500/20"
-            : "bg-gradient-to-r from-purple-300/20 to-pink-300/20"
-        }`}
-        animate={{
-          x: [-100, 100, -100],
-          y: [-50, 50, -50],
-        }}
-        transition={{
-          duration: 25,
-          repeat: Infinity,
-          ease: "easeInOut"
-        }}
-      />
-      <motion.div
-        className={`absolute w-[600px] h-[600px] rounded-full blur-[150px] -bottom-96 -right-96 ${
-          isDarkMode
-            ? "bg-gradient-to-l from-blue-500/20 to-cyan-500/20"
-            : "bg-gradient-to-l from-blue-300/20 to-cyan-300/20"
-        }`}
-        animate={{
-          x: [100, -100, 100],
-          y: [50, -50, 50],
-        }}
-        transition={{
-          duration: 25,
-          repeat: Infinity,
-          ease: "easeInOut"
-        }}
-      />
+      <AnimatedGradientBg isDarkMode={isDarkMode} />
+      <NavBarLanding isDarkMode={isDarkMode} toggleTheme={toggleTheme} />
 
       <motion.div 
-        className="flex flex-col items-center justify-center space-y-8 p-4 z-10"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8 }}
+        className="flex flex-col items-center justify-center space-y-8 sm:space-y-10 z-10 w-full max-w-2xl mt-16 sm:mt-0" 
       >
-        <Link href="/" passHref>
-          <motion.div 
-            className="relative group"
-            whileHover={{ rotate: 5, scale: 1.1 }}
-            transition={{ type: "spring", stiffness: 300 }}
-          >
-            <motion.img
-              src="../inputCreate_adapted.svg"
-              alt="Create"
-              className="w-32 h-32 object-contain cursor-pointer"
-              style={{ rotate }}
-            />
-            <div className={`absolute inset-0 rounded-full opacity-0 group-hover:opacity-20 blur-xl transition-opacity duration-300 ${
-              isDarkMode 
-                ? "bg-gradient-to-r from-purple-500 to-pink-500"
-                : "bg-gradient-to-r from-purple-400 to-pink-400"
-            }`} />
-          </motion.div>
-        </Link>
+        <motion.div
+          className="relative group"
+          whileHover={{ y: -8, scale: 1.05 }}
+          transition={{ type: "spring", stiffness: 250, damping: 10 }}
+          variants={itemVariants}
+        >
+          <Link href="/" passHref aria-label="Intellect AI Logo">
+             <motion.div 
+              className={`w-28 h-28 sm:w-32 sm:h-32 rounded-full flex items-center justify-center shadow-2xl
+                         bg-gradient-to-br ${isDarkMode 
+                            ? "from-purple-600 via-pink-500 to-orange-500 hover:shadow-pink-500/40" 
+                            : "from-purple-500 via-pink-500 to-orange-400 hover:shadow-pink-400/30"
+                         } transition-all duration-300`}
+              style={{ rotate: rotateIcon }} 
+             >
+                <Zap size={50} className="text-white opacity-90 group-hover:opacity-100 transition-opacity" />
+             </motion.div>
+          </Link>
+        </motion.div>
 
         <motion.h1 
-          className="text-6xl font-bold text-transparent bg-clip-text relative"
-          style={{
-            backgroundImage: `linear-gradient(45deg, ${
-              isDarkMode ? "#c084fc, #ec4899" : "#9333ea, #db2777"
-            })`
-          }}
-          animate={{
-            backgroundPosition: ['0% 50%', '100% 50%', '0% 50%']
-          }}
-          transition={{
-            duration: 8,
-            repeat: Infinity
-          }}
+          className="font-heading text-4xl sm:text-5xl md:text-6xl font-black tracking-tight text-center"
+          variants={itemVariants}
         >
-          Teach me
-          <motion.span 
-            className="absolute -right-8 -top-4"
-            animate={{
-              rotate: [0, 360],
-              scale: [1, 1.2, 1]
-            }}
-            transition={{
-              duration: 4,
-              repeat: Infinity
-            }}
-          >
-            <Sparkles className={`w-8 h-8 ${isDarkMode ? "text-purple-400" : "text-purple-600"}`} />
-          </motion.span>
+          <span className={`${isDarkMode ? "text-white" : "text-black"}`}>
+            What do you want to 
+          </span>
+          <span className={`block mt-1 sm:mt-2
+            ${isDarkMode ? 'text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-orange-400' 
+                         : 'text-transparent bg-clip-text bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500'}
+          `}>
+            master today?
+          </span>
         </motion.h1>
 
         <motion.div 
-          className="relative w-full max-w-2xl"
-          whileHover={{ scale: 1.02 }}
+          className="relative w-full"
+          variants={itemVariants}
         >
-          <input
-            type="text"
-            placeholder="Name a topic..."
-            className={`w-full px-8 py-5 text-xl backdrop-blur-lg rounded-2xl shadow-xl border-2 transition-all duration-300 outline-none focus:ring-0 ${
-              isDarkMode
-                ? "bg-gray-800/50 border-gray-700/50 placeholder:text-gray-400"
-                : "bg-white/80 border-gray-300/50 placeholder:text-gray-500"
-            } ${
-              isFocused 
-                ? (isDarkMode 
-                    ? "border-purple-500/50 shadow-purple-500/20" 
-                    : "border-purple-600/50 shadow-purple-600/20")
-                : ""
-            }`}
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
-          />
-          {!topic && (
+          <div className="relative group">
+            <Search className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-300 pointer-events-none 
+                                ${isDarkMode ? (isFocused ? 'text-purple-400' : 'text-gray-500') 
+                                             : (isFocused ? 'text-purple-600' : 'text-gray-400')}`} 
+                      size={20} />
+            <input
+              type="text"
+              placeholder="e.g., The History of Ancient Rome, Basics of Rust Programming..."
+              className={`w-full pl-12 pr-4 py-4 text-base sm:text-lg rounded-xl outline-none transition-all duration-300 shadow-lg
+                          border ${isDarkMode
+                            ? "bg-gray-800/70 border-gray-700 text-gray-100 placeholder-gray-500 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 hover:border-gray-600"
+                            : "bg-white/80 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 hover:border-gray-400"
+                          }`}
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
+              onKeyDown={(e) => e.key === 'Enter' && topic.trim() && handleGenerateClick()}
+            />
+          </div>
+          {!topic && !isFocused && (
             <motion.div 
-              className="absolute inset-0 flex items-center justify-center pointer-events-none"
+              className="absolute inset-y-0 left-12 flex items-center pointer-events-none"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
             >
-              <span className={`animate-pulse ${
-                isDarkMode ? "text-gray-500/60" : "text-gray-400/70"
-              }`}>
-                Try "Quantum Computing" or "Neural Networks"
+              <span className={`text-sm sm:text-base animate-pulse ${isDarkMode ? "text-gray-600" : "text-gray-400"}`}>
+                Explore any concept...
               </span>
             </motion.div>
           )}
         </motion.div>
 
         <motion.button
-          onClick={handleButtonClick}
-          disabled={!topic}
-          className={`relative overflow-hidden px-10 py-5 text-xl font-semibold flex items-center space-x-3 rounded-2xl transition-all duration-500 ${
-            topic
-              ? isDarkMode
-                ? "bg-gradient-to-r from-purple-500 to-pink-500 hover:shadow-purple-500/30"
-                : "bg-gradient-to-r from-purple-400 to-pink-400 hover:shadow-purple-400/30"
-              : "cursor-not-allowed"
-          } ${
-            isDarkMode 
-              ? "text-white" 
-              : "text-gray-900"
-          } ${
-            !topic && (isDarkMode 
-              ? "bg-gray-800/50" 
-              : "bg-gray-100/50")
-          }`}
-          whileHover={topic ? { scale: 1.05 } : {}}
-          whileTap={topic ? { scale: 0.95 } : {}}
+          onClick={handleGenerateClick}
+          disabled={!topic.trim()}
+          className={`font-semibold px-8 py-4 rounded-xl text-lg relative group overflow-hidden shadow-lg
+                      transition-all duration-300 ease-out w-full sm:w-auto
+                      ${!topic.trim() 
+                          ? (isDarkMode ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-300 text-gray-400 cursor-not-allowed')
+                          : (isDarkMode
+                            ? "bg-gradient-to-br from-purple-600 via-pink-500 to-orange-500 text-white hover:shadow-pink-500/40"
+                            : "bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400 text-white hover:shadow-pink-500/30")
+                      }`}
+          whileHover={topic.trim() ? { scale: 1.05, y: -2, boxShadow: `0px 10px 30px -5px ${isDarkMode ? 'rgba(192, 132, 252, 0.3)' : 'rgba(147, 51, 234, 0.2)'}` } : {}}
+          whileTap={topic.trim() ? { scale: 0.95, y: 0 } : {}}
+          variants={itemVariants}
         >
-          {topic && (
-            <motion.div 
-              className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300"
-              initial={{ x: "-100%" }}
-              animate={{ x: "100%" }}
-              transition={{
-                duration: 1.5,
-                repeat: Infinity,
-                ease: "linear"
-              }}
-            />
+          {topic.trim() && (
+             <span className="absolute w-0 h-0 transition-all duration-300 ease-out bg-white/20 group-hover:w-full group-hover:h-full opacity-0 group-hover:opacity-100 rounded-xl"></span>
           )}
-          <Sparkles className={`w-6 h-6 ${topic ? "animate-sparkle" : ""}`} />
-          <span>Generate AI Insights</span>
+          <span className="relative flex items-center gap-2.5">
+            <Zap className={`w-5 h-5 ${topic.trim() ? 'group-hover:animate-pulse' : 'opacity-50'}`} />
+            Generate Lecture
+          </span>
         </motion.button>
       </motion.div>
-    </motion.main>
+    </motion.div>
   );
 }

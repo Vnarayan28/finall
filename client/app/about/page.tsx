@@ -1,167 +1,166 @@
 "use client";
 
-import { Fade } from "react-awesome-reveal";
+import { Fade } from "react-awesome-reveal"; // Keeping react-awesome-reveal for existing animations
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react"; // Added useEffect for initial theme
 import { motion } from "framer-motion";
-import { Home, User, Sparkles, Moon, Sun } from "lucide-react";
+import { Sparkles, Zap } from "lucide-react"; // Replaced Home, User, Info, Moon, Sun with Zap for CTA
 
-export default function About() {
-  const [isDarkMode, setIsDarkMode] = useState(true);
+// Assuming these components are correctly pathed
+import AnimatedGradientBg from "../components/AnimatedGradientBg"; 
+import NavBarLanding from "../NavBarLanding"; // Adjust path as needed
 
-  const toggleTheme = () => setIsDarkMode(!isDarkMode);
+export default function AboutPage() { // Renamed component for clarity
+  const [isDarkMode, setIsDarkMode] = useState(true); // Default to dark
+
+  const toggleTheme = () => {
+    setIsDarkMode(prevMode => {
+      const newMode = !prevMode;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('theme', newMode ? 'dark' : 'light');
+        document.documentElement.classList.toggle('dark', newMode);
+      }
+      return newMode;
+    });
+  };
+  
+  useEffect(() => { // Handles initial theme loading
+    if (typeof window !== 'undefined') {
+      const storedTheme = localStorage.getItem('theme');
+      const systemPrefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const initialIsDark = storedTheme ? storedTheme === 'dark' : systemPrefersDark;
+      setIsDarkMode(initialIsDark);
+      document.documentElement.classList.toggle('dark', initialIsDark);
+    }
+  }, []);
+
+  const sectionVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } },
+  };
 
   return (
-    <main className={`relative min-h-screen flex flex-col items-center justify-center px-10 py-20 overflow-hidden ${
-      isDarkMode ? "text-white bg-gradient-to-br from-purple-900 via-black to-blue-900" : "text-gray-900 bg-gradient-to-br from-purple-100 via-white to-blue-100"
-    }`}>
-      {/* Navigation Bar */}
-      <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-lg bg-black/20">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo Section */}
-            <Link href="/" className="flex items-center space-x-2">
-              <motion.div
-                className="relative flex items-center"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <motion.div
-                  className="absolute -inset-1 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full opacity-75 blur-sm"
-                  animate={{
-                    scale: [1, 1.2, 1],
-                    opacity: [0.7, 0.9, 0.7],
-                  }}
-                  transition={{
-                    duration: 2,
-                    repeat: Infinity,
-                  }}
-                />
-                <div className="relative flex items-center bg-black/50 rounded-full p-2">
-                  <Sparkles className="w-6 h-6 text-purple-400" />
-                  <span className="ml-2 font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">
-                    IntellectAI
-                  </span>
-                </div>
-              </motion.div>
-            </Link>
+    <div className={`relative min-h-screen w-full flex flex-col items-center overflow-x-hidden selection:bg-pink-500 selection:text-white ${isDarkMode ? "dark" : ""}`}>
+      <AnimatedGradientBg isDarkMode={isDarkMode} />
+      <NavBarLanding isDarkMode={isDarkMode} toggleTheme={toggleTheme} />
 
-            {/* Navigation Links */}
-            <div className="flex items-center space-x-8">
-              <Link 
-                href="/"
-                className="flex items-center space-x-2 px-4 py-2 rounded-full transition-all duration-300 hover:bg-white/10"
-              >
-                <Home className="w-5 h-5 text-purple-400" />
-                <span className="font-medium">Home</span>
-              </Link>
-              <Link 
-                href="/profile"
-                className="flex items-center space-x-2 px-4 py-2 rounded-full transition-all duration-300 hover:bg-white/10"
-              >
-                <User className="w-5 h-5 text-blue-400" />
-                <span className="font-medium">Profile</span>
-              </Link>
-              
-              {/* Theme Toggle Button */}
-              <button
-                onClick={toggleTheme}
-                className={`p-3 rounded-full transition-colors duration-300 ${
-                  isDarkMode
-                    ? "bg-purple-600 hover:bg-purple-700"
-                    : "bg-yellow-400 hover:bg-yellow-500"
-                }`}
-              >
-                {isDarkMode ? (
-                  <Moon className="w-6 h-6 text-white" />
-                ) : (
-                  <Sun className="w-6 h-6 text-gray-900" />
-                )}
-              </button>
+      <main className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 py-24 sm:py-28 md:py-32 text-center">
+        {/* Hero Section for About Page */}
+        <motion.div
+          variants={sectionVariants}
+          initial="hidden"
+          animate="visible"
+        >
+          <Fade direction="down" triggerOnce cascade damping={0.1}>
+            <h1 className={`font-heading text-4xl sm:text-5xl md:text-6xl font-black tracking-tight leading-tight
+                           ${isDarkMode ? 'text-white' : 'text-black'}`}>
+              About <span className={`text-transparent bg-clip-text bg-gradient-to-r 
+                                      ${isDarkMode ? 'from-purple-400 via-pink-400 to-orange-400' 
+                                                   : 'from-purple-600 via-pink-600 to-orange-500'}`}>
+                        IntellectAI
+                      </span>
+            </h1>
+            <p className={`mt-4 text-md sm:text-lg max-w-2xl mx-auto ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}>
+              Pioneering the future of education through AI-powered, interactive, and deeply personalized learning adventures.
+            </p>
+          </Fade>
+        </motion.div>
+        
+        {/* Team Image / Brand Image */}
+        <motion.div 
+          className="my-10 sm:my-12 md:my-16"
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.3, duration: 0.5 }}
+        >
+          <Fade direction="up" delay={200} triggerOnce>
+            <div className={`relative inline-block p-1.5 sm:p-2 rounded-2xl shadow-2xl 
+                           bg-gradient-to-br ${isDarkMode ? "from-purple-600/30 to-blue-600/30" : "from-purple-200/40 to-blue-200/40"}`}>
+              <Image
+                src="/logo2.png" // Ensure this path is correct in your public folder
+                alt="IntellectAI Brand Image"
+                width={480} // Adjusted size
+                height={288} // Adjusted size (assuming 16:9 like aspect for the placeholder)
+                className="rounded-xl object-cover"
+                priority
+              />
             </div>
-          </div>
-        </div>
-      </nav>
+          </Fade>
+        </motion.div>
 
-      {/* Background elements */}
-      <div className="absolute inset-0 z-[-1]">
-        <div className={`absolute inset-0 ${
-          isDarkMode 
-            ? "bg-[url('/grid-pattern.svg')] opacity-20" 
-            : "bg-[url('/light-grid-pattern.svg')] opacity-30"
-        }`} />
-        <div className={`absolute w-60 h-60 rounded-full blur-[120px] top-10 left-10 opacity-30 ${
-          isDarkMode ? "bg-purple-500" : "bg-purple-200"
-        }`} />
-        <div className={`absolute w-80 h-80 rounded-full blur-[150px] bottom-10 right-10 opacity-30 ${
-          isDarkMode ? "bg-blue-500" : "bg-blue-200"
-        }`} />
-      </div>
+        {/* Why Choose Us Section */}
+        <motion.section 
+          className="w-full max-w-3xl mx-auto"
+          variants={sectionVariants}
+          initial="hidden"
+          whileInView="visible" // Animate when it comes into view
+          viewport={{ once: true, amount: 0.3 }}
+        >
+          <Fade direction="up" delay={100} triggerOnce> {/* Reduced delay for whileInView */}
+            <div className={`p-6 sm:p-8 rounded-2xl sm:rounded-3xl border shadow-xl 
+                           ${isDarkMode 
+                             ? "bg-black/30 border-white/10 backdrop-blur-lg shadow-purple-500/10" 
+                             : "bg-white/50 border-black/10 backdrop-blur-lg shadow-purple-500/5"
+                           }`}>
+              <h2 className={`font-heading text-2xl sm:text-3xl font-bold mb-5 sm:mb-6 text-center
+                             ${isDarkMode ? 'text-transparent bg-clip-text bg-gradient-to-r from-purple-300 to-blue-300' 
+                                          : 'text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-blue-600'}`}>
+                Why IntellectAI?
+              </h2>
+              <ul className={`space-y-3 text-left text-sm sm:text-base list-none sm:pl-4 ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}>
+                {[
+                  "📚 AI-driven, personalized learning paths tailored to you.",
+                  "🎙️ Voice-based interactive lectures for engaging study.",
+                  "🖥️ Dynamic slideshows and captivating presentations.",
+                  "💡 Cutting-edge, research-backed content generation.",
+                  "🚀 A smarter, adaptive way to master any subject."
+                ].map((item, index) => (
+                  <motion.li 
+                    key={index} 
+                    className="flex items-start gap-2.5"
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.1 + 0.2 }} // Stagger list items
+                  >
+                    <Sparkles className={`w-4 h-4 sm:w-5 sm:h-5 mt-1 shrink-0 ${isDarkMode ? "text-purple-400" : "text-purple-600"}`} />
+                    <span>{item}</span>
+                  </motion.li>
+                ))}
+              </ul>
+            </div>
+          </Fade>
+        </motion.section>
 
-      {/* Hero Section */}
-      <Fade direction="up" delay={200}>
-        <h1 className="text-5xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-blue-400">
-          About <span className="text-purple-400">IntellectAI</span>
-        </h1>
-        <p className={`text-lg max-w-3xl text-center mt-4 ${
-          isDarkMode ? "text-gray-300" : "text-gray-600"
-        }`}>
-          Transforming education through AI-powered, interactive, and personalized learning experiences.
-        </p>
-      </Fade>
-
-      {/* Team Image */}
-      <Fade direction="up" delay={400}>
-        <Image
-          src="/logo2.png"
-          alt="Team Learning"
-          width={500}
-          height={300}
-          className="mt-8 rounded-xl shadow-lg border-2 border-white/20"
-        />
-      </Fade>
-
-      {/* Why Choose Us Section */}
-      <Fade direction="up" delay={600}>
-        <div className={`mt-10 max-w-4xl backdrop-blur-md p-8 rounded-xl border shadow-lg ${
-          isDarkMode 
-            ? "bg-white/10 border-white/20" 
-            : "bg-purple-50/30 border-gray-900/20"
-        }`}>
-          <h2 className="text-3xl font-semibold mb-4 text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-blue-400">
-            Why Choose IntellectAI?
-          </h2>
-          <ul className={`list-disc text-lg space-y-3 pl-6 ${
-            isDarkMode ? "text-gray-300" : "text-gray-600"
-          }`}>
-            <li>📚 AI-driven, personalized learning</li>
-            <li>🎙️ Voice-based interactive lectures</li>
-            <li>🖥️ Engaging slideshow presentations</li>
-            <li>💡 Research-backed content generation</li>
-            <li>🚀 A smarter way to learn, adapted for YOU</li>
-          </ul>
-        </div>
-      </Fade>
-
-      {/* Call to Action */}
-      <Fade direction="up" delay={800}>
-        <div className="mt-12">
-          <Link href="/">
-            <motion.button 
-              className={`px-6 py-3 transition-all duration-300 rounded-full text-lg font-semibold shadow-md ${
-                isDarkMode
-                  ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white"
-                  : "bg-gradient-to-r from-purple-300 to-blue-300 text-gray-900"
-              }`}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              Get Started
-            </motion.button>
-          </Link>
-        </div>
-      </Fade>
-    </main>
+        {/* Call to Action */}
+        <motion.div 
+          className="mt-10 sm:mt-12 md:mt-16"
+          initial={{ opacity:0, y:20 }}
+          animate={{ opacity:1, y:0 }}
+          transition={{ delay:0.5, duration:0.5}}
+        >
+          <Fade direction="up" delay={100} triggerOnce>
+            <Link href="/input" passHref> {/* Link to input page or home */}
+              <motion.button 
+                className={`font-semibold px-7 py-3.5 sm:px-8 sm:py-4 rounded-xl text-md sm:text-lg relative group overflow-hidden shadow-lg
+                            transition-all duration-300 ease-out
+                            ${isDarkMode
+                              ? "bg-gradient-to-br from-purple-600 via-pink-500 to-orange-500 text-white hover:shadow-pink-500/30"
+                              : "bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400 text-white hover:shadow-pink-500/20"
+                            }`}
+                whileHover={{ scale: 1.03, y: -2, boxShadow: `0px 8px 25px -5px ${isDarkMode ? 'rgba(192, 132, 252, 0.25)' : 'rgba(147, 51, 234, 0.2)'}` }}
+                whileTap={{ scale: 0.97, y: 0 }}
+              >
+                 <span className="absolute w-0 h-0 transition-all duration-300 ease-out bg-white/10 group-hover:w-full group-hover:h-full opacity-0 group-hover:opacity-100 rounded-xl"></span>
+                <span className="relative flex items-center gap-2">
+                  <Zap className="w-5 h-5 group-hover:animate-pulse" />
+                  Explore Topics
+                </span>
+              </motion.button>
+            </Link>
+          </Fade>
+        </motion.div>
+      </main>
+    </div>
   );
 }

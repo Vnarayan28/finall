@@ -4,8 +4,8 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import ChatBot from '../components/ChatBot'
 import { FiMessageCircle, FiX, FiLoader } from 'react-icons/fi'
 
-//const THIRTY_MINUTES_MS = 30 * 60 * 1000;
-const THIRTY_MINUTES_MS = 10 * 1000; // For testing 10 seconds
+const THIRTY_MINUTES_MS = 30 * 60 * 1000;
+// const THIRTY_MINUTES_MS = 10 * 1000; // For testing 10 seconds
 
 export default function LecturePage() {
   const searchParams = useSearchParams()
