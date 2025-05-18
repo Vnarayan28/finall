@@ -5,7 +5,7 @@ import ChatBot from '../components/ChatBot'
 import { FiMessageCircle, FiX, FiLoader } from 'react-icons/fi'
 
 const THIRTY_MINUTES_MS = 30 * 60 * 1000;
-// const THIRTY_MINUTES_MS = 10 * 1000; // For testing 10 seconds
+// const THIRTY_MINUTES_MS = 5 * 1000; // For testing 10 seconds
 
 export default function LecturePage() {
   const searchParams = useSearchParams()
@@ -285,6 +285,16 @@ export default function LecturePage() {
           <div className="bg-gray-800 p-5 sm:p-6 rounded-xl shadow-2xl max-w-md w-full text-white space-y-4">
             <h2 className="text-xl font-semibold text-center text-purple-300">Stress Check</h2>
             
+            {stressCheckStep === 'capturing' && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="border-4 border-purple-400 rounded-lg w-64 h-32 relative top-[-20%]">
+                  <p className="text-center text-purple-400 mt-[-2rem]">
+                    Please position your forehead within this box
+                  </p>
+                </div>
+              </div>
+            )}
+
             {(stressCheckStep === 'capturing' || stressCheckStep === 'analyzing') && (
               <video 
                 ref={videoPreviewRef} 

@@ -2,11 +2,12 @@ import logging
 import os
 import re
 from datetime import datetime, timedelta
-import base64 # Added import
-from io import BytesIO # Added import
-
+import base64
+from io import BytesIO
+from deepface import DeepFace
+import numpy as np
 import google.generativeai as genai
-from google.api_core.exceptions import ResourceExhausted # Added for generate_answer
+from google.api_core.exceptions import ResourceExhausted
 import requests
 import uvicorn
 import wikipedia
@@ -15,14 +16,13 @@ from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from PIL import Image # Added import
+from PIL import Image
 from pymongo import MongoClient
 from pydantic import BaseModel
 from youtube_transcript_api import YouTubeTranscriptApi
 
 load_dotenv()
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -59,8 +59,8 @@ class TokenData(BaseModel):
     email: str
 
 
-
-import numpy as np
+# Note: numpy is already imported above, so this second import is redundant
+# import numpy as np
 from scipy.signal import find_peaks, detrend, butter, filtfilt
 from scipy.fftpack import fft, fftfreq
 
@@ -95,19 +95,44 @@ class HeartMetricsCalculator:
 
     def estimate_heart_rate(self, roi_frames):
         heart_rates = []
-        if len(roi_frames) <= 2:
+        if len(roi_frames) <= 2: # Needs at least 3 frames for detrend, filter, moving_avg
+            logger.warning(f"HeartMetricsCalculator: Insufficient roi_frames ({len(roi_frames)}), need > 2.")
             return 0, 0, 0, 0, 0
 
         intensity_over_time = [np.mean(frame) for frame in roi_frames]
+        if len(intensity_over_time) <= 2: # detrend needs > 2 samples
+            logger.warning(f"HeartMetricsCalculator: Insufficient intensity_over_time ({len(intensity_over_time)}), need > 2 for detrend.")
+            return 0,0,0,0,0
+
         detrended_intensity = detrend(intensity_over_time)
         filtered_signal = self.bandpass_filter(detrended_intensity, 0.5, 3, self.fps)
 
         window_size = int(self.fps/3.0)
+        if window_size < 1: window_size = 1 # Ensure window_size is at least 1
+        
+        if len(filtered_signal) < window_size: # moving_average needs signal > window_size
+            logger.warning(f"HeartMetricsCalculator: Filtered signal length ({len(filtered_signal)}) is less than moving average window size ({window_size}).")
+            # Attempt to proceed without smoothing or return default
+            # For simplicity, let's assume we need smoothing.
+            # If smoothing is critical, return defaults or use original filtered_signal.
+            # smoothed_signal = filtered_signal # Option: proceed without smoothing
+            # For now, return default if we can't smooth as per original logic path
+            return 0,0,0,0,0
+
+
         smoothed_signal = self.moving_average(filtered_signal, window_size)
 
+        if len(smoothed_signal) < self.window_length:
+            logger.warning(f"HeartMetricsCalculator: Smoothed signal length ({len(smoothed_signal)}) is less than window_length ({self.window_length}).")
+            # Optionally, try with a smaller window or use the whole signal if possible
+            # For now, stick to original logic: if not enough data for segment, HR list remains empty.
+            pass # Will result in empty heart_rates if loop doesn't run
+
         for start in range(0, len(smoothed_signal) - self.window_length, self.step_size):
-            segment = filtered_signal[start:start+self.window_length]
-            peaks, _ = find_peaks(segment, distance=self.fps/3.0, height=np.max(segment)*0.6)
+            segment = smoothed_signal[start:start+self.window_length] # Use smoothed_signal here as per your original logic for peaks
+            if len(segment) == 0: continue
+            peaks, _ = find_peaks(segment, distance=self.fps/3.0, height=np.max(segment)*0.6 if np.max(segment) > 0 else 0)
+
 
             if len(peaks) > 1:
                 heart_rate = self.calculate_heart_rate(peaks, self.fps)
@@ -118,12 +143,15 @@ class HeartMetricsCalculator:
         else:
             avg_heart_rate = 0
         
-        all_peaks = find_peaks(filtered_signal, distance=self.fps/3.0)[0]
-        if len(all_peaks) < 2: # Need at least 2 peaks to compute IBI
-             return avg_heart_rate, 0, 0, 0, 0 # Return defaults if not enough peaks
+        # Use the longer filtered_signal for IBI calculation, as per original logic
+        all_peaks, _ = find_peaks(filtered_signal, distance=self.fps/3.0, height=np.max(filtered_signal)*0.6 if np.max(filtered_signal)>0 else 0)
+        if len(all_peaks) < 2:
+             logger.warning(f"HeartMetricsCalculator: Not enough peaks ({len(all_peaks)}) in full filtered_signal for IBI.")
+             return avg_heart_rate, 0, 0, 0, 0
 
         ibi = self.compute_IBI(all_peaks, self.fps)
-        if len(ibi) == 0: # IBI could be empty if only 1 peak found by all_peaks
+        if len(ibi) == 0:
+            logger.warning("HeartMetricsCalculator: IBI calculation resulted in an empty array.")
             return avg_heart_rate, 0, 0, 0, 0
 
         sdnn = np.std(ibi) if len(ibi) > 0 else 0
@@ -131,17 +159,22 @@ class HeartMetricsCalculator:
         bsi = (1 / rmssd) if rmssd > 0 else 0
 
 
-        if len(ibi) < 2: # FFT requires at least 2 points
+        if len(ibi) < 2:
+            logger.warning(f"HeartMetricsCalculator: IBI length ({len(ibi)}) too short for FFT.")
             lf_hf_ratio = 0
         else:
-            frequencies = fftfreq(len(ibi), d=np.mean(ibi) if np.mean(ibi) > 0 else 1) # Avoid division by zero
-            power_spectrum = np.abs(fft(ibi))**2
-            lf_band = (0.04, 0.15)
-            hf_band = (0.15, 0.4)
-            lf_power = np.sum(power_spectrum[(frequencies >= lf_band[0]) & (frequencies < lf_band[1])])
-            hf_power = np.sum(power_spectrum[(frequencies >= hf_band[0]) & (frequencies < hf_band[1])])
-            lf_hf_ratio = (lf_power / hf_power) if hf_power > 0 else 0
-
+            mean_ibi_val = np.mean(ibi)
+            if mean_ibi_val <= 0: # Avoid division by zero or negative d for fftfreq
+                logger.warning(f"HeartMetricsCalculator: Mean IBI is non-positive ({mean_ibi_val}), cannot compute FFT reliably.")
+                lf_hf_ratio = 0
+            else:
+                frequencies = fftfreq(len(ibi), d=mean_ibi_val)
+                power_spectrum = np.abs(fft(ibi))**2
+                lf_band = (0.04, 0.15)
+                hf_band = (0.15, 0.4)
+                lf_power = np.sum(power_spectrum[(frequencies >= lf_band[0]) & (frequencies < lf_band[1])])
+                hf_power = np.sum(power_spectrum[(frequencies >= hf_band[0]) & (frequencies < hf_band[1])])
+                lf_hf_ratio = (lf_power / hf_power) if hf_power > 0 else 0
 
         return avg_heart_rate, sdnn, rmssd, bsi, lf_hf_ratio
 
@@ -156,7 +189,7 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 def create_token(data: dict, expires_delta: timedelta = None) -> str:
     to_encode = data.copy()
-    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)) # Use defined expiration
+    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
@@ -181,7 +214,7 @@ def get_current_user(authorization: str = Header(None)) -> TokenData:
         return TokenData(user_id=user_id, email=email)
     except JWTError as e:
         logger.error(f"JWT validation failed: {str(e)}")
-        raise HTTPException(status_code=401, detail="Invalid token") # Re-raise as HTTPException for consistent error handling
+        raise HTTPException(status_code=401, detail="Invalid token")
 
 def parse_duration(iso_str: str) -> tuple:
     try:
@@ -196,10 +229,9 @@ def parse_duration(iso_str: str) -> tuple:
         
         total_seconds = hours * 3600 + minutes * 60 + seconds
         
-        if total_seconds < 240:  # 4 minutes minimum
+        if total_seconds < 240:
             return None, total_seconds
         
-        # Format readable duration consistently
         h_disp = total_seconds // 3600
         m_disp = (total_seconds % 3600) // 60
         s_disp = total_seconds % 60
@@ -414,7 +446,7 @@ async def generate_answer(videoId: str, topic: str, question: str):
         try:
             response = model.generate_content(prompt)
             return {"answer": response.text.strip()}
-        except ResourceExhausted as e: # Catching the imported exception
+        except ResourceExhausted as e:
             logger.warning(f"Gemini API quota exceeded: {str(e)}")
             raise HTTPException(status_code=429, detail="Gemini API quota exceeded. Please wait and try again.")
 
@@ -430,45 +462,116 @@ async def generate_answer(videoId: str, topic: str, question: str):
 async def analyze_stress(data: dict):
     try:
         frames = data.get('frames', [])
-        
         intensity_values = []
-        for frame_data_url in frames:
-            # Ensure frame_data_url is a string and contains a comma
+        processed_frame_count = 0
+        
+        for i, frame_data_url in enumerate(frames):
+            logger.debug(f"Processing frame {i+1}/{len(frames)}")
             if not isinstance(frame_data_url, str) or ',' not in frame_data_url:
-                logger.warning(f"Skipping invalid frame data: {frame_data_url}")
-                continue
-            try:
-                # Split the base64 string to get only the data part
-                header, encoded = frame_data_url.split(',', 1)
-                image_data = base64.b64decode(encoded)
-                image = Image.open(BytesIO(image_data)).convert('L')  # Convert to grayscale
-                intensity_values.append(np.array(image)) # Keep as array for HeartMetricsCalculator
-            except (base64.binascii.Error, ValueError) as decode_error: # Catch potential decoding errors
-                logger.warning(f"Skipping frame due to base64 decode error: {decode_error}")
-                continue
-            except Exception as img_proc_error:
-                logger.warning(f"Skipping frame due to image processing error: {img_proc_error}")
+                logger.warning(f"Frame {i+1}: Invalid data URL format. Skipping.")
                 continue
 
-        if len(intensity_values) < 10:  # Minimum frames check
-            logger.info(f"Insufficient valid frames for analysis: {len(intensity_values)}")
-            return {"error": "Insufficient valid frames for analysis"}
-            
-        # Calculate metrics
-        calculator = HeartMetricsCalculator(fps=10)  # Match frontend FPS
-        # estimate_heart_rate expects a list of frames (numpy arrays), not means
-        avg_hr, sdnn, rmssd, _, lf_hf_ratio = calculator.estimate_heart_rate(intensity_values) 
+            try:
+                header, encoded = frame_data_url.split(',', 1)
+                image_data = base64.b64decode(encoded)
+                image = Image.open(BytesIO(image_data)).convert('RGB')
+
+                try:
+                    face_analysis_results = DeepFace.analyze(
+                        img_path=np.array(image),
+                        actions=['emotion'], # 'region' is implicitly returned with emotion
+                        detector_backend='ssd', # Consider 'mtcnn' or 'retinaface' if ssd struggles
+                        silent=True,
+                        enforce_detection=False # Important: allows processing even if no face, handle below
+                    )
+                    
+                    # DeepFace returns a list, one dict per detected face.
+                    # If enforce_detection is False and no face, it might return list with dict containing error or just empty list
+                    if not face_analysis_results or not isinstance(face_analysis_results, list) or not face_analysis_results[0].get('region'):
+                        logger.warning(f"Frame {i+1}: No face detected or region missing. Skipping. Analysis result: {face_analysis_results}")
+                        continue
+
+                    if len(face_analysis_results) > 1:
+                        logger.warning(f"Frame {i+1}: Multiple faces ({len(face_analysis_results)}) detected. Using the first one. Skipping.")
+                        continue # Or decide to pick the largest, most central, etc. For now, skip.
+
+                    face_analysis = face_analysis_results[0] # Use the first detected face
+
+                    box = face_analysis.get('region')
+                    if not box or not all(k in box for k in ['x', 'y', 'w', 'h']):
+                        logger.warning(f"Frame {i+1}: Face detected but region data is incomplete. Skipping. Box: {box}")
+                        continue
+                    
+                    x, y, w, h = box['x'], box['y'], box['w'], box['h']
+                    logger.info(f"Frame {i+1}: Detected face at x:{x}, y:{y}, w:{w}, h:{h}")
+
+                    if w <= 0 or h <= 0:
+                        logger.warning(f"Frame {i+1}: Invalid face region dimensions (w or h is zero or negative). w:{w}, h:{h}. Skipping.")
+                        continue
+
+                    # Calculate forehead coordinates
+                    roi_y1 = y + (h // 8)
+                    roi_y2 = y + (h // 4)
+                    roi_x1 = x + (w // 3)
+                    roi_x2 = x + w - (w // 3)
+
+                    if not (roi_x1 < roi_x2 and roi_y1 < roi_y2):
+                        logger.warning(f"Frame {i+1}: Invalid forehead ROI calculated (e.g., x1>=x2 or y1>=y2). Face box: {box}, Forehead_coords: ({roi_x1},{roi_y1},{roi_x2},{roi_y2}). Skipping.")
+                        continue
+                    
+                    logger.info(f"Frame {i+1}: Calculated forehead ROI x1:{roi_x1}, y1:{roi_y1}, x2:{roi_x2}, y2:{roi_y2}")
+
+                    forehead = image.crop((int(roi_x1), int(roi_y1), int(roi_x2), int(roi_y2)))
+                    
+                    if forehead.size[0] == 0 or forehead.size[1] == 0:
+                        logger.warning(f"Frame {i+1}: Cropped forehead is empty. Original image size: {image.size}, Forehead_crop_box: ({roi_x1},{roi_y1},{roi_x2},{roi_y2}). Skipping.")
+                        continue
+
+                    forehead_array = np.array(forehead)
+                    if forehead_array.ndim < 3 or forehead_array.shape[2] < 2: # Need at least R, G, B for [..., 1]
+                        logger.warning(f"Frame {i+1}: Forehead array has unexpected shape {forehead_array.shape} (ndim < 3 or channels < 2). Skipping.")
+                        continue
+                    
+                    green_channel = forehead_array[..., 1]
+                    intensity_values.append(green_channel)
+                    processed_frame_count += 1
+                    logger.info(f"Frame {i+1}: Added green channel from forehead. Total valid intensity_values: {len(intensity_values)}")
+
+                except ValueError as ve: # Often from DeepFace if no face found and enforce_detection=True (but we use False)
+                    logger.warning(f"Frame {i+1}: ValueError during face analysis (likely no face detectable by backend). Error: {ve}. Skipping.")
+                    continue
+                except Exception as face_error:
+                    logger.error(f"Frame {i+1}: Error during face/forehead processing. Error: {face_error}", exc_info=True)
+                    continue
+
+            except Exception as frame_error:
+                logger.error(f"Frame {i+1}: General error processing frame. Error: {frame_error}", exc_info=True)
+                continue
         
+        # Increased threshold for more robust analysis, e.g., 3 seconds of data at 10fps = 30 frames
+        # The HeartMetricsCalculator also has internal checks.
+        MIN_VALID_FRAMES = 30 # Adjustable threshold
+        if len(intensity_values) < MIN_VALID_FRAMES:
+            logger.error(f"Insufficient valid frames for robust analysis: {len(intensity_values)} collected, need at least {MIN_VALID_FRAMES}.")
+            return {"error": f"Insufficient valid frames for analysis ({len(intensity_values)} collected). Please ensure your face and forehead are clearly visible, well-lit, and stable in the camera view."}
+
+        logger.info(f"Proceeding to HeartMetricsCalculator with {len(intensity_values)} valid intensity frames.")
+        calculator = HeartMetricsCalculator(fps=10) # Assuming 10 FPS from frontend
+        avg_hr, sdnn, rmssd, bsi, lf_hf_ratio = calculator.estimate_heart_rate(intensity_values)
+        
+        logger.info(f"Analysis results: HR:{avg_hr}, SDNN:{sdnn}, RMSSD:{rmssd}, BSI:{bsi}, LF/HF:{lf_hf_ratio}")
+
         return {
-            "avg_heart_rate": avg_hr,
-            "sdnn": sdnn if not np.isnan(sdnn) else 0, # Handle NaN
-            "rmssd": rmssd if not np.isnan(rmssd) else 0, # Handle NaN
-            "lf_hf_ratio": lf_hf_ratio if not np.isnan(lf_hf_ratio) else 0 # Handle NaN
+            "avg_heart_rate": avg_hr if not np.isnan(avg_hr) else 0,
+            "sdnn": sdnn if not np.isnan(sdnn) else 0,
+            "rmssd": rmssd if not np.isnan(rmssd) else 0,
+            "bsi": bsi if not np.isnan(bsi) else 0, # BSI added
+            "lf_hf_ratio": lf_hf_ratio if not np.isnan(lf_hf_ratio) else 0
         }
-        
+
     except Exception as e:
-        logger.error(f"Stress analysis error: {str(e)}", exc_info=True) # Added exc_info for more details
-        return {"error": "Failed to process stress analysis"}
+        logger.error(f"Overall stress analysis error: {str(e)}", exc_info=True)
+        return {"error": "Failed to process stress analysis due to an unexpected internal server error."}
 
 
 @app.get("/user/lectures")
