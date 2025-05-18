@@ -1,6 +1,5 @@
-import type { Config } from "tailwindcss";
-
-const config: Config = {
+/** @type {import('tailwindcss').Config} */
+module.exports = {
   content: [
     "./app/**/*.{js,ts,jsx,tsx}",
     "./pages/**/*.{js,ts,jsx,tsx}",
@@ -8,17 +7,25 @@ const config: Config = {
   ],
   theme: {
     extend: {
-      colors: {
-        purple: {
-          500: '#8B5CF6',
-          600: '#7C3AED',
+      fontFamily: {
+        sans: ['var(--font-manrope)', 'sans-serif'], 
+        heading: ['var(--font-outfit)', 'sans-serif'], 
+      },
+      animation: {
+        'aurora': 'aurora 60s linear infinite',
+        'levitate': 'levitate 5s ease-in-out infinite',
+      },
+      keyframes: {
+        aurora: {
+          from: { backgroundPosition: '0% 50%' },
+          to: { backgroundPosition: '200% 50%' },
         },
-        blue: {
-          500: '#3B82F6',
-          600: '#2563EB',
-        }
-      }
-    }
-  }
-};
-export default config;
+        levitate: {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-20px)' },
+        },
+      },
+    },
+  },
+  plugins: [],
+}
