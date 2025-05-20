@@ -1,18 +1,18 @@
 "use client";
 
-import { Fade } from "react-awesome-reveal"; // Keeping react-awesome-reveal for existing animations
+import { Fade } from "react-awesome-reveal"; 
 import Image from "next/image";
 import Link from "next/link";
-import { useState, useEffect } from "react"; // Added useEffect for initial theme
+import { useState, useEffect } from "react"; 
 import { motion } from "framer-motion";
-import { Sparkles, Zap } from "lucide-react"; // Replaced Home, User, Info, Moon, Sun with Zap for CTA
+import { Sparkles, Zap } from "lucide-react"; 
 
-// Assuming these components are correctly pathed
+
 import AnimatedGradientBg from "../components/AnimatedGradientBg"; 
-import NavBarLanding from "../NavBarLanding"; // Adjust path as needed
+import NavBarLanding from "../NavBarLanding"; 
 
-export default function AboutPage() { // Renamed component for clarity
-  const [isDarkMode, setIsDarkMode] = useState(true); // Default to dark
+export default function AboutPage() { 
+  const [isDarkMode, setIsDarkMode] = useState(true); 
 
   const toggleTheme = () => {
     setIsDarkMode(prevMode => {
@@ -25,7 +25,7 @@ export default function AboutPage() { // Renamed component for clarity
     });
   };
   
-  useEffect(() => { // Handles initial theme loading
+  useEffect(() => { 
     if (typeof window !== 'undefined') {
       const storedTheme = localStorage.getItem('theme');
       const systemPrefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -78,10 +78,10 @@ export default function AboutPage() { // Renamed component for clarity
             <div className={`relative inline-block p-1.5 sm:p-2 rounded-2xl shadow-2xl 
                            bg-gradient-to-br ${isDarkMode ? "from-purple-600/30 to-blue-600/30" : "from-purple-200/40 to-blue-200/40"}`}>
               <Image
-                src="/logo2.png" // Ensure this path is correct in your public folder
+                src="/logo2.png" 
                 alt="IntellectAI Brand Image"
-                width={480} // Adjusted size
-                height={288} // Adjusted size (assuming 16:9 like aspect for the placeholder)
+                width={480} 
+                height={288} 
                 className="rounded-xl object-cover"
                 priority
               />
@@ -89,15 +89,15 @@ export default function AboutPage() { // Renamed component for clarity
           </Fade>
         </motion.div>
 
-        {/* Why Choose Us Section */}
+        {/* helps in motion handling*/}
         <motion.section 
           className="w-full max-w-3xl mx-auto"
           variants={sectionVariants}
           initial="hidden"
-          whileInView="visible" // Animate when it comes into view
+          whileInView="visible" 
           viewport={{ once: true, amount: 0.3 }}
         >
-          <Fade direction="up" delay={100} triggerOnce> {/* Reduced delay for whileInView */}
+          <Fade direction="up" delay={100} triggerOnce> {}
             <div className={`p-6 sm:p-8 rounded-2xl sm:rounded-3xl border shadow-xl 
                            ${isDarkMode 
                              ? "bg-black/30 border-white/10 backdrop-blur-lg shadow-purple-500/10" 
@@ -132,7 +132,7 @@ export default function AboutPage() { // Renamed component for clarity
           </Fade>
         </motion.section>
 
-        {/* Call to Action */}
+        
         <motion.div 
           className="mt-10 sm:mt-12 md:mt-16"
           initial={{ opacity:0, y:20 }}
@@ -140,7 +140,7 @@ export default function AboutPage() { // Renamed component for clarity
           transition={{ delay:0.5, duration:0.5}}
         >
           <Fade direction="up" delay={100} triggerOnce>
-            <Link href="/input" passHref> {/* Link to input page or home */}
+            <Link href="/input" passHref> 
               <motion.button 
                 className={`font-semibold px-7 py-3.5 sm:px-8 sm:py-4 rounded-xl text-md sm:text-lg relative group overflow-hidden shadow-lg
                             transition-all duration-300 ease-out

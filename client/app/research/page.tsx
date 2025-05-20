@@ -18,7 +18,6 @@ type VideoResource = {
   status: "todo" | "inprogress" | "done"; 
 };
 
-// Consistent Theme Toggle Button
 const ThemeToggleButton = ({ isDarkMode, toggleTheme }: { isDarkMode: boolean; toggleTheme: () => void }) => (
   <motion.button
     onClick={toggleTheme}
@@ -172,7 +171,7 @@ export default function ResearchPage() {
     setLoading(true);
     setError(null);
     setVideos([]); 
-    setSelectedVideo(null); // Reset selected video on new fetch
+    setSelectedVideo(null); 
     try {
       const response = await fetch(`/api/generate-lecture?topic=${encodeURIComponent(currentTopic)}`);
       if (!response.ok) {

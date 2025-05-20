@@ -130,11 +130,10 @@ export default function Home() {
             <span className="absolute w-0 h-0 transition-all duration-300 ease-out bg-white/20 group-hover:w-full group-hover:h-full opacity-0 group-hover:opacity-100 rounded-xl"></span>
             <span className="relative flex items-center gap-2.5">
               <Zap className="w-5 h-5 group-hover:animate-pulse" />
-              Begin Your Ascent
+              Begin Your Journey
             </span>
           </motion.button>
 
-          {/* New Prominent Theme Toggle Button in Hero */}
           <motion.button
             onClick={toggleTheme}
             whileHover={{ scale: 1.1, rotate: isDarkMode ? -10 : 10 }}
