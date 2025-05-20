@@ -1,4 +1,6 @@
 {
     "IDX.aI.enableInlineCompletion": true,
-    "IDX.aI.enableCodebaseIndexing": true
+    "IDX.aI.enableCodebaseIndexing": true,
+    "appService.defaultWebAppToDeploy": "undefined/subscriptions/b5947efc-be6e-4353-8091-b4fe10615acb/resourceGroups/appsvc_linux_centralindia_premium/providers/Microsoft.Web/sites/intellect",
+    "appService.deploySubpath": "."
 }

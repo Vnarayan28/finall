@@ -1,6 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  darkMode: 'class', // Important for manual dark mode toggling
+  darkMode: 'class', 
   content: [
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -8,14 +8,14 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['var(--font-manrope)', 'sans-serif'], // Default sans-serif
-        heading: ['var(--font-outfit)', 'sans-serif'], // For headings
+        sans: ['var(--font-manrope)', 'sans-serif'], 
+        heading: ['var(--font-outfit)', 'sans-serif'], 
       },
       animation: {
         'aurora': 'aurora 60s linear infinite',
-        'levitate': 'levitate 5s ease-in-out infinite', // If you use it
-        'sparkle': 'sparkle 1s infinite', // For button sparkles
-        'pulse-soft': 'pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite', // For subtle pulse
+        'levitate': 'levitate 5s ease-in-out infinite', 
+        'sparkle': 'sparkle 1s infinite',
+        'pulse-soft': 'pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite', 
       },
       keyframes: {
         aurora: {

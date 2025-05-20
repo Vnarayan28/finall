@@ -1,12 +1,11 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import { motion, useScroll, useTransform, useSpring, useMotionValue, PanInfo } from "framer-motion";
-import { Sparkles, Brain, BookOpenText, Mic, PlayCircle, ArrowRight, Zap, Rows3, Sun, Moon } from "lucide-react"; // Added Sun, Moon
+import { Sparkles, Brain, BookOpenText, Mic, PlayCircle, ArrowRight, Zap, Rows3, Sun, Moon } from "lucide-react"; 
 import { Dialog } from "@headlessui/react";
 import { useRouter } from "next/navigation";
 import NavBarLanding from "./NavBarLanding";
 
-// InteractiveOrb component is now REMOVED
 
 
 export default function Home() {
@@ -16,7 +15,7 @@ export default function Home() {
 
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
 
-  const features = [ // Feature configuration remains the same
+  const features = [
     {
       title: "Hyper-Personalized AI Tutor",
       description: "Adapts to your unique learning style for maximum efficiency.",
@@ -61,7 +60,7 @@ export default function Home() {
     animate: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 80, damping: 15 } },
   };
   
-  const AnimatedGradientBg = () => ( // Background remains the same
+  const AnimatedGradientBg = () => (
     <div className={`fixed inset-0 -z-10 h-full w-full 
       ${isDarkMode ? 'bg-gray-950' : 'bg-slate-50'}
       bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] 
@@ -78,17 +77,15 @@ export default function Home() {
   return (
     <div className={`relative min-h-screen w-full flex flex-col items-center justify-center overflow-x-hidden selection:bg-pink-500 selection:text-white ${isDarkMode ? "dark" : ""}`}>
       <AnimatedGradientBg />
-      {/* Pass toggleTheme to NavBarLanding so it can also control the theme if needed */}
       <NavBarLanding isDarkMode={isDarkMode} toggleTheme={toggleTheme} />
 
-      {/* Hero Section */}
+     
       <motion.section 
         className="relative z-10 flex flex-col items-center justify-center text-center min-h-screen w-full px-4 pt-24 pb-16"
         variants={heroVariants}
         initial="initial"
         animate="animate"
       >
-        {/* Removed the InteractiveOrb div that was here */}
 
         <motion.h1 
           variants={heroItemVariants}
@@ -143,7 +140,7 @@ export default function Home() {
                           ? "bg-gray-800 border-white/20 text-yellow-400 hover:bg-gray-700 hover:border-yellow-400/50" 
                           : "bg-white border-black/10 text-purple-600 hover:bg-gray-100 hover:border-purple-600/50"}`}
             aria-label={`Switch to ${isDarkMode ? 'light' : 'dark'} mode`}
-            variants={heroItemVariants} // Can reuse hero item variants for entry
+            variants={heroItemVariants}
           >
             {isDarkMode ? (
               <Sun className="w-6 h-6" />
@@ -154,7 +151,6 @@ export default function Home() {
         </motion.div>
       </motion.section>
 
-      {/* Auth Selection Modal (remains the same) */}
       <Dialog
         open={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
@@ -211,7 +207,6 @@ export default function Home() {
         </div>
       </Dialog>
 
-      {/* Features Bento Grid Section (remains the same) */}
       <section className="relative z-10 w-full max-w-6xl mx-auto py-20 sm:py-28 px-4">
         <motion.h2 
           className={`font-heading text-4xl sm:text-5xl font-black text-center mb-12 sm:mb-16 tracking-tight
@@ -259,7 +254,7 @@ export default function Home() {
         </motion.div>
       </section>
 
-       {/* Footer - Simple (remains the same) */}
+       
        <footer className="relative z-10 w-full py-12 text-center">
         <p className={`text-sm ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
           © {new Date().getFullYear()} IntellectAI. All rights reserved.
