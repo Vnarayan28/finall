@@ -1,6 +1,7 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
-import { FaRobot, FaUserCircle, FaSpinner, FaExclamationCircle, FaPlay, FaPause } from 'react-icons/fa';
+import { FaRobot, FaUserCircle, FaSpinner, FaExclamationCircle, FaPlay, FaPause, FaDownload } from 'react-icons/fa';
+import jsPDF from 'jspdf';
 
 interface ChatBotProps {
   videoId: string;
@@ -29,6 +30,91 @@ export default function ChatBot({ videoId, topic }: ChatBotProps) {
   });
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const generatePdf = () => {
+    const doc = new jsPDF(); // Default unit is 'mm', pageSize is A4
+
+    const margin = 20; // mm
+    let yPos = margin; // mm
+    const pageHeight = doc.internal.pageSize.height; // mm
+    const pageWidth = doc.internal.pageSize.width; // mm
+    const contentWidth = pageWidth - margin * 2; // mm
+
+    const titleFontSize = 16; // pt
+    const messageFontSize = 10; // pt
+
+    const getLineHeightInPageUnits = (fontSizeInPt: number) => {
+        return (fontSizeInPt / doc.internal.scaleFactor) * 1.4; // 1.4 line spacing
+    };
+
+    // Add title
+    doc.setFontSize(titleFontSize);
+    doc.setTextColor(0, 0, 0); // Black for title
+    let currentLineHeight = getLineHeightInPageUnits(titleFontSize);
+    const titleLines = doc.splitTextToSize(`Chat Conversation - ${topic}`, contentWidth);
+    titleLines.forEach((line: string) => {
+        if (yPos + currentLineHeight > pageHeight - margin) {
+            doc.addPage();
+            yPos = margin;
+            doc.setFontSize(titleFontSize);
+            doc.setTextColor(0, 0, 0);
+        }
+        doc.text(line, margin, yPos);
+        yPos += currentLineHeight;
+    });
+    yPos += currentLineHeight * 0.5;
+
+    // Add messages
+    doc.setFontSize(messageFontSize);
+    currentLineHeight = getLineHeightInPageUnits(messageFontSize);
+
+    const userColorHex = '#9333EA'; // Purple for User
+    const botColorHex = '#000000';   // PURE BLACK for Bot messages
+
+    const hexToRgb = (hex: string) => {
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      return [r, g, b];
+    };
+
+    messages.forEach((msg) => {
+      const activeColorRGB = msg.isUser ? hexToRgb(userColorHex) : hexToRgb(botColorHex);
+      const activeFont = msg.isUser ? 'helvetica' : 'courier';
+      // User's prefix "[You]:" will be bold, bot's "[Bot]:" will be normal.
+      // If you want bot's prefix bold as well, change 'normal' to 'bold' below for the bot.
+      const activeFontStyle = msg.isUser ? 'bold' : 'normal'; 
+      
+      doc.setFont(activeFont, activeFontStyle);
+      doc.setTextColor(activeColorRGB[0], activeColorRGB[1], activeColorRGB[2]);
+
+      const timestampStr = msg.timestamp
+        ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        : '';
+      const senderPrefix = `[${msg.isUser ? 'You' : 'Bot'}]: `;
+      const messageContent = msg.text || "";
+
+      const fullText = `${timestampStr} ${senderPrefix}${messageContent}`;
+      
+      const lines = doc.splitTextToSize(fullText, contentWidth);
+
+      lines.forEach((line: string) => {
+        if (yPos + currentLineHeight > pageHeight - margin) {
+          doc.addPage();
+          yPos = margin;
+          doc.setFontSize(messageFontSize);
+          doc.setFont(activeFont, activeFontStyle); // Reset font for current message type
+          doc.setTextColor(activeColorRGB[0], activeColorRGB[1], activeColorRGB[2]); // Reset color for current message type
+        }
+        doc.text(line, margin, yPos);
+        yPos += currentLineHeight;
+      });
+      
+      yPos += currentLineHeight * 0.5;
+    });
+
+    doc.save(`ChatBot-Conversation-${topic}-${new Date().toISOString().slice(0,10)}.pdf`);
+  };
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -56,10 +142,10 @@ export default function ChatBot({ videoId, topic }: ChatBotProps) {
   };
 
   const toggleSpeech = (text: string) => {
-    if (speechState.isSpeaking) {
+    if (speechState.isSpeaking && speechState.currentUtterance?.text === text) {
       window.speechSynthesis.pause();
       setSpeechState(prev => ({ ...prev, isSpeaking: false }));
-    } else if (speechState.currentUtterance) {
+    } else if (!speechState.isSpeaking && speechState.currentUtterance?.text === text) {
       window.speechSynthesis.resume();
       setSpeechState(prev => ({ ...prev, isSpeaking: true }));
     } else {
@@ -153,8 +239,8 @@ export default function ChatBot({ videoId, topic }: ChatBotProps) {
         {!msg.isUser && (
           <button
             onClick={() => toggleSpeech(msg.text)}
-            className="text-gray-300 hover:text-purple-400 transition-colors ml-2"
-            aria-label={speechState.isSpeaking ? "Pause speech" : "Play speech"}
+            className="text-gray-300 hover:text-purple-400 transition-colors ml-2 shrink-0"
+            aria-label={speechState.isSpeaking && speechState.currentUtterance?.text === msg.text ? "Pause speech" : "Play speech"}
           >
             {speechState.isSpeaking && speechState.currentUtterance?.text === msg.text ? (
               <FaPause className="shrink-0" />
@@ -178,10 +264,19 @@ export default function ChatBot({ videoId, topic }: ChatBotProps) {
   return (
     <div className="flex flex-col h-full bg-gray-900 rounded-xl shadow-2xl overflow-hidden border border-gray-700">
       <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
-        <h3 className="text-white font-semibold flex items-center gap-2">
-          <FaRobot className="text-purple-400" />
-          Lecture Assistant
-        </h3>
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <FaRobot className="text-purple-400" />
+            <h3 className="text-white font-semibold">Lecture Assistant</h3>
+          </div>
+          <button
+            onClick={generatePdf}
+            className="text-gray-400 hover:text-purple-400 transition-colors p-2 rounded-lg"
+            title="Download conversation as PDF"
+          >
+            <FaDownload size={18} />
+          </button>
+        </div>
         <p className="text-sm text-gray-400 truncate">Topic: {topic}</p>
       </div>
 
@@ -203,13 +298,13 @@ export default function ChatBot({ videoId, topic }: ChatBotProps) {
             className={`flex items-start gap-2 ${msg.isUser ? 'justify-end' : 'justify-start'}`}
           >
             {!msg.isUser && (
-              <div className="mt-1 text-purple-400">
+              <div className="mt-1 text-purple-400 shrink-0">
                 <FaRobot size={20} />
               </div>
             )}
             <MessageBubble msg={msg} />
             {msg.isUser && (
-              <div className="mt-1 text-gray-400">
+              <div className="mt-1 text-gray-400 shrink-0">
                 <FaUserCircle size={20} />
               </div>
             )}
@@ -218,14 +313,13 @@ export default function ChatBot({ videoId, topic }: ChatBotProps) {
 
         {isLoading && (
           <div className="flex items-start gap-2 justify-start">
-            <div className="mt-1 text-purple-400">
+            <div className="mt-1 text-purple-400 shrink-0">
               <FaRobot size={20} />
             </div>
-            <div className="bg-gray-800 p-3 rounded-2xl shadow-md">
+            <div className="bg-gray-800 p-3 rounded-2xl shadow-md text-gray-200">
               <div className="flex items-center gap-2">
                 <FaSpinner className="animate-spin text-purple-500" />
                 <span>Thinking...</span>
-                <FaPlay className="text-purple-400 animate-pulse" />
               </div>
             </div>
           </div>
