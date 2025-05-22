@@ -180,8 +180,7 @@ export default function InputPage() {
           ))}
         </motion.div>
         
-        {/* Input Area Container for AnimatePresence */}
-        <div className="w-full h-[150px] sm:h-[140px]"> {/* Fixed height container to prevent layout jumps */}
+        <div className="w-full h-[150px] sm:h-[140px]"> 
           <AnimatePresence mode="wait">
             {activeInputType === 'topic' && (
               <motion.div

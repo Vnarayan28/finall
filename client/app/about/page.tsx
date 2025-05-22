@@ -46,7 +46,6 @@ export default function AboutPage() {
       <NavBarLanding isDarkMode={isDarkMode} toggleTheme={toggleTheme} />
 
       <main className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 py-24 sm:py-28 md:py-32 text-center">
-        {/* Hero Section for About Page */}
         <motion.div
           variants={sectionVariants}
           initial="hidden"
@@ -67,7 +66,6 @@ export default function AboutPage() {
           </Fade>
         </motion.div>
         
-        {/* Team Image / Brand Image */}
         <motion.div 
           className="my-10 sm:my-12 md:my-16"
           initial={{ opacity: 0, scale: 0.9 }}
@@ -89,7 +87,6 @@ export default function AboutPage() {
           </Fade>
         </motion.div>
 
-        {/* helps in motion handling*/}
         <motion.section 
           className="w-full max-w-3xl mx-auto"
           variants={sectionVariants}
@@ -121,7 +118,7 @@ export default function AboutPage() {
                     className="flex items-start gap-2.5"
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.1 + 0.2 }} // Stagger list items
+                    transition={{ delay: index * 0.1 + 0.2 }} 
                   >
                     <Sparkles className={`w-4 h-4 sm:w-5 sm:h-5 mt-1 shrink-0 ${isDarkMode ? "text-purple-400" : "text-purple-600"}`} />
                     <span>{item}</span>

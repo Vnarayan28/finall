@@ -44,9 +44,7 @@ export default function LecturePage() {
         !videoPreviewRef.current.srcObject || !isVideoStreamReady || videoPreviewRef.current.paused || videoPreviewRef.current.ended ||
         !showStressCheckModal || stressCheckStep !== 'capturing') {
 
-      // If still intended to be capturing but some condition (like video paused) fails,
-      // we might let the useEffect handle restarting if the condition resolves.
-      // For now, if the primary conditions (step, modal) aren't met, ensure loop stops.
+
       if (!(showStressCheckModal && stressCheckStep === 'capturing')) {
           if (animationFrameIdRef.current) {
               cancelAnimationFrame(animationFrameIdRef.current);

@@ -33,14 +33,14 @@ export default function ChatBot({ videoId, topic }: ChatBotProps) {
   const generatePdf = () => {
     const doc = new jsPDF(); // Default unit is 'mm', pageSize is A4
 
-    const margin = 20; // mm
-    let yPos = margin; // mm
-    const pageHeight = doc.internal.pageSize.height; // mm
-    const pageWidth = doc.internal.pageSize.width; // mm
-    const contentWidth = pageWidth - margin * 2; // mm
+    const margin = 20; 
+    let yPos = margin; 
+    const pageHeight = doc.internal.pageSize.height; 
+    const pageWidth = doc.internal.pageSize.width; 
+    const contentWidth = pageWidth - margin * 2; 
 
-    const titleFontSize = 16; // pt
-    const messageFontSize = 10; // pt
+    const titleFontSize = 16; 
+    const messageFontSize = 10;
 
     const getLineHeightInPageUnits = (fontSizeInPt: number) => {
         return (fontSizeInPt / doc.internal.scaleFactor) * 1.4; // 1.4 line spacing
@@ -102,8 +102,8 @@ export default function ChatBot({ videoId, topic }: ChatBotProps) {
           doc.addPage();
           yPos = margin;
           doc.setFontSize(messageFontSize);
-          doc.setFont(activeFont, activeFontStyle); // Reset font for current message type
-          doc.setTextColor(activeColorRGB[0], activeColorRGB[1], activeColorRGB[2]); // Reset color for current message type
+          doc.setFont(activeFont, activeFontStyle); 
+          doc.setTextColor(activeColorRGB[0], activeColorRGB[1], activeColorRGB[2]); 
         }
         doc.text(line, margin, yPos);
         yPos += currentLineHeight;
