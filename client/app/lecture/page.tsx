@@ -6,8 +6,8 @@ import { FiMessageCircle, FiX, FiLoader } from 'react-icons/fi'
 
 type FaceApiModuleType = typeof import('face-api.js');
 
-const THIRTY_MINUTES_MS = 30 * 60 * 1000;
-// const THIRTY_MINUTES_MS = 5 * 1000; // For testing 10 seconds
+//const THIRTY_MINUTES_MS = 30 * 60 * 1000;
+const THIRTY_MINUTES_MS = 5 * 1000; // For testing 5 seconds
 
 export default function LecturePage() {
   const searchParams = useSearchParams()
@@ -15,9 +15,12 @@ export default function LecturePage() {
   const [isChatOpen, setIsChatOpen] = useState(false)
   const [isAlertVisible, setIsAlertVisible] = useState(false)
 
-  const [showStressCheckModal, setShowStressCheckModal] = useState(false);
-  const [stressCheckStep, setStressCheckStep] = useState<'capturing' | 'analyzing' | 'results' | 'error' | null>(null);
-  const [stressMetrics, setStressMetrics] = useState<{ avg_heart_rate?: number; lf_hf_ratio?: number; sdnn?: number; rmssd?: number; error?: string } | null>(null);
+  const [showHeartRateModal, setShowHeartRateModal] = useState(false);
+  const [modalStep, setModalStep] = useState<'capturing' | 'analyzing_hr' | 'age_input' | 'recommendation' | 'error' | null>(null);
+  
+  const [analysisResult, setAnalysisResult] = useState<{ avg_heart_rate?: number; error?: string } | null>(null);
+  const [userAgeInput, setUserAgeInput] = useState<string>('');
+  const [submittedUserAge, setSubmittedUserAge] = useState<number | null>(null);
 
   const videoPreviewRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -33,26 +36,36 @@ export default function LecturePage() {
   const videoId = searchParams.get('videoId')
   const topic = searchParams.get('topic')
 
-  const isStressHigh = stressMetrics && !stressMetrics.error &&
-    typeof stressMetrics.lf_hf_ratio === 'number' &&
-    typeof stressMetrics.avg_heart_rate === 'number' &&
-    (stressMetrics.lf_hf_ratio > 2 || stressMetrics.avg_heart_rate > 170 || stressMetrics.avg_heart_rate < 45);
+  const isHeartRateConcerning = useCallback((): boolean => {
+    if (!analysisResult?.avg_heart_rate || submittedUserAge === null) return false;
+    
+    const hr = analysisResult.avg_heart_rate;
+    const age = submittedUserAge;
+
+    if (age >= 18) {
+      // Adults: Resting heart rate typically 60-100.
+      // Let's flag if significantly outside a wider range during a lecture setting.
+      return hr < 45 || hr > 170; 
+    } else { // < 18 (Children/Teens)
+      // Children/teens have higher resting heart rates.
+      // e.g. Teens (13-18 years): 50-90. Children (6-12 years): 70-110.
+      // Let's use a broad range for "concerning" during a lecture.
+      return hr < 50 || hr > 160;
+    }
+  }, [analysisResult, submittedUserAge]);
+
 
   const drawForeheadBox = useCallback(async () => {
-    
     if (!faceApiModel || !videoPreviewRef.current || !canvasRef.current || !modelsLoaded ||
         !videoPreviewRef.current.srcObject || !isVideoStreamReady || videoPreviewRef.current.paused || videoPreviewRef.current.ended ||
-        !showStressCheckModal || stressCheckStep !== 'capturing') {
+        !showHeartRateModal || modalStep !== 'capturing') {
 
-
-      if (!(showStressCheckModal && stressCheckStep === 'capturing')) {
+      if (!(showHeartRateModal && modalStep === 'capturing')) {
           if (animationFrameIdRef.current) {
               cancelAnimationFrame(animationFrameIdRef.current);
               animationFrameIdRef.current = null;
           }
-      } else if (animationFrameIdRef.current){ // If capturing, but other things failed, keep trying
-          // If already running, let it be, next call will be scheduled by itself or useEffect
-      }
+      } // No 'else if' needed here, the outer condition handles starting/stopping primarily.
       return;
     }
 
@@ -60,16 +73,16 @@ export default function LecturePage() {
     const canvas = canvasRef.current;
     const context = canvas.getContext('2d');
 
-    if (!context) { // Should ideally not happen if canvasRef is valid
+    if (!context) {
       if (animationFrameIdRef.current) cancelAnimationFrame(animationFrameIdRef.current);
-      animationFrameIdRef.current = requestAnimationFrame(drawForeheadBox); // Try again
+      animationFrameIdRef.current = requestAnimationFrame(drawForeheadBox);
       return;
     }
 
     const displaySize = { width: video.clientWidth, height: video.clientHeight };
-    if (displaySize.width === 0 || displaySize.height === 0) { // Video not rendered/sized yet
+    if (displaySize.width === 0 || displaySize.height === 0) {
         if (animationFrameIdRef.current) cancelAnimationFrame(animationFrameIdRef.current);
-        animationFrameIdRef.current = requestAnimationFrame(drawForeheadBox); // Try again
+        animationFrameIdRef.current = requestAnimationFrame(drawForeheadBox);
         return;
     }
 
@@ -112,9 +125,8 @@ export default function LecturePage() {
       }
     }
 
-    // Recursive call for the loop, managed by the master switch (useEffect)
-    if (stressCheckStep === 'capturing' && showStressCheckModal) {
-        if (animationFrameIdRef.current) cancelAnimationFrame(animationFrameIdRef.current); // Ensure only one loop
+    if (modalStep === 'capturing' && showHeartRateModal) {
+        if (animationFrameIdRef.current) cancelAnimationFrame(animationFrameIdRef.current);
         animationFrameIdRef.current = requestAnimationFrame(drawForeheadBox);
     } else {
         if (animationFrameIdRef.current) {
@@ -122,16 +134,14 @@ export default function LecturePage() {
             animationFrameIdRef.current = null;
         }
     }
-  }, [faceApiModel, modelsLoaded, showStressCheckModal, stressCheckStep, isVideoStreamReady]);
+  }, [faceApiModel, modelsLoaded, showHeartRateModal, modalStep, isVideoStreamReady]);
 
 
-  // useEffect for loading face-api.js module and models
   useEffect(() => {
     const loadFaceApiAndModels = async () => {
       try {
         const importedFaceApi = await import('face-api.js');
         setFaceApiModel(importedFaceApi);
-
         const MODEL_URL = '/models';
         await Promise.all([
           importedFaceApi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
@@ -144,41 +154,37 @@ export default function LecturePage() {
       }
     };
     loadFaceApiAndModels();
-  }, []); // Runs once on mount
+  }, []);
 
 
-  // useEffect to control the drawing loop based on state
   useEffect(() => {
-    if (stressCheckStep === 'capturing' && showStressCheckModal && modelsLoaded && faceApiModel && isVideoStreamReady) {
-      console.log("useEffect: Starting drawing loop.");
-      if (animationFrameIdRef.current) { // Clear any existing loop before starting new
+    if (modalStep === 'capturing' && showHeartRateModal && modelsLoaded && faceApiModel && isVideoStreamReady) {
+      if (animationFrameIdRef.current) {
         cancelAnimationFrame(animationFrameIdRef.current);
       }
       animationFrameIdRef.current = requestAnimationFrame(drawForeheadBox);
     } else {
-      // console.log("useEffect: Stopping drawing loop.");
       if (animationFrameIdRef.current) {
         cancelAnimationFrame(animationFrameIdRef.current);
         animationFrameIdRef.current = null;
       }
-      if (canvasRef.current && stressCheckStep !== 'capturing') { // Clear canvas if not capturing
+      if (canvasRef.current && modalStep !== 'capturing') {
           const context = canvasRef.current.getContext('2d');
           context?.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
       }
     }
-    // Cleanup animation frame if the component unmounts or dependencies change causing effect to re-run
     return () => {
       if (animationFrameIdRef.current) {
         cancelAnimationFrame(animationFrameIdRef.current);
         animationFrameIdRef.current = null;
       }
     };
-  }, [stressCheckStep, showStressCheckModal, modelsLoaded, faceApiModel, drawForeheadBox, isVideoStreamReady]);
+  }, [modalStep, showHeartRateModal, modelsLoaded, faceApiModel, drawForeheadBox, isVideoStreamReady]);
 
 
   useEffect(() => {
     let timerId: NodeJS.Timeout | undefined;
-    if (videoId && topic && !isAlertVisible && !showStressCheckModal) {
+    if (videoId && topic && !isAlertVisible && !showHeartRateModal) {
       timerId = setTimeout(() => {
         setIsAlertVisible(true);
       }, THIRTY_MINUTES_MS);
@@ -188,7 +194,7 @@ export default function LecturePage() {
         clearTimeout(timerId);
       }
     };
-  }, [isAlertVisible, videoId, topic, showStressCheckModal]);
+  }, [isAlertVisible, videoId, topic, showHeartRateModal]);
 
   const cleanupCaptureTimers = () => {
     if (captureIntervalRef.current) {
@@ -209,27 +215,25 @@ export default function LecturePage() {
     if (videoPreviewRef.current) {
       videoPreviewRef.current.srcObject = null;
     }
-    setIsVideoStreamReady(false); // Stream is no longer ready
-    // The useEffect will handle stopping the drawing loop when isVideoStreamReady becomes false
-    // or other conditions like showStressCheckModal or stressCheckStep change.
+    setIsVideoStreamReady(false);
   }, [currentStream]);
 
 
-  const handleCheckStress = async () => {
+  const handleStartHeartRateCheck = async () => {
     setIsAlertVisible(false);
-    setShowStressCheckModal(true);
-    setStressMetrics(null);
+    setShowHeartRateModal(true);
+    setAnalysisResult(null);
+    setUserAgeInput('');
+    setSubmittedUserAge(null);
     cleanupCaptureTimers();
-    setIsVideoStreamReady(false); // Reset before starting
+    setIsVideoStreamReady(false); 
 
     if (!modelsLoaded || !faceApiModel) {
-        setStressMetrics({ error: "Face detection tools are not ready. Please wait or try refreshing." });
-        setStressCheckStep('error'); // This will trigger useEffect to stop/not start loop
+        setAnalysisResult({ error: "Face detection tools are not ready. Please wait or try refreshing." });
+        setModalStep('error');
         return;
     }
-    // Set capturing step AFTER model check and before stream acquisition
-    setStressCheckStep('capturing');
-
+    setModalStep('capturing');
 
     let localStream: MediaStream | null = null;
     try {
@@ -240,17 +244,17 @@ export default function LecturePage() {
         videoPreviewRef.current.srcObject = localStream;
         videoPreviewRef.current.onloadedmetadata = () => {
           videoPreviewRef.current?.play().then(() => {
-            setIsVideoStreamReady(true); // Stream is ready and playing, useEffect will pick this up
+            setIsVideoStreamReady(true);
           }).catch(playError => {
             console.error("Error playing video preview:", playError);
-            setStressMetrics({ error: "Could not play video preview." });
-            setStressCheckStep('error');
+            setAnalysisResult({ error: "Could not play video preview." });
+            setModalStep('error');
           });
         };
         videoPreviewRef.current.onerror = (e) => {
           console.error("Video element error (preview):", e);
-          setStressMetrics({ error: "Video preview element error." });
-          setStressCheckStep('error');
+          setAnalysisResult({ error: "Video preview element error." });
+          setModalStep('error');
           stopMediaStream();
         };
       }
@@ -268,16 +272,16 @@ export default function LecturePage() {
           const canvasForBackend = document.createElement("canvas");
           const contextForBackend = canvasForBackend.getContext("2d");
           if (!contextForBackend) {
-            setStressMetrics({ error: "Failed to initialize graphics for analysis." });
-            setStressCheckStep('error');
+            setAnalysisResult({ error: "Failed to initialize graphics for analysis." });
+            setModalStep('error');
             stopMediaStream();
             return;
           }
           canvasForBackend.width = 320;
           canvasForBackend.height = 240;
           const frames: string[] = [];
-          const captureRate = 10;
-          const duration = 10 * 1000;
+          const captureRate = 10; // FPS for backend analysis
+          const duration = 10 * 1000; // 10 seconds capture
 
           captureIntervalRef.current = setInterval(() => {
             if (hiddenProcessingVideo.readyState >= hiddenProcessingVideo.HAVE_CURRENT_DATA && !hiddenProcessingVideo.paused && hiddenProcessingVideo.videoWidth > 0) {
@@ -290,75 +294,98 @@ export default function LecturePage() {
           captureTimeoutRef.current = setTimeout(async () => {
             cleanupCaptureTimers();
             hiddenProcessingVideo.pause();
-            // Changing step will make useEffect stop the drawing loop
-            setStressCheckStep('analyzing');
+            setModalStep('analyzing_hr');
 
             try {
-              if (frames.length < (captureRate * duration / 1000 / 2) ) {
-                setStressMetrics({ error: `Not enough video frames were captured (${frames.length}). Ensure camera is unobstructed and permissions are granted.` });
-                setStressCheckStep('error');
+              if (frames.length < (captureRate * duration / 1000 / 2) ) { // e.g. less than 50 frames for 10s at 10fps
+                setAnalysisResult({ error: `Not enough video frames captured (${frames.length}). Ensure camera is unobstructed.` });
+                setModalStep('error');
+                stopMediaStream(); // Stop stream as analysis won't proceed
                 return;
               }
-              const res = await fetch("/api/analyze-stress", {
+              const res = await fetch("/api/analyze-stress", { // This API return { avg_heart_rate: number }
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ frames }),
+                body: JSON.stringify({ frames, fps: captureRate }), 
               });
               const data = await res.json();
-              setStressMetrics(data);
-              if (data.error) {
-                setStressCheckStep('error');
+
+              if (data.error || typeof data.avg_heart_rate !== 'number') {
+                setAnalysisResult({ error: data.error || "Failed to get heart rate from analysis." });
+                setModalStep('error');
               } else {
-                setStressCheckStep('results');
+                setAnalysisResult({ avg_heart_rate: data.avg_heart_rate });
+                setModalStep('age_input');
               }
             } catch (apiError) {
               console.error("API call to /api/analyze-stress failed:", apiError);
-              setStressMetrics({ error: "Failed to connect to the analysis service." });
-              setStressCheckStep('error');
+              setAnalysisResult({ error: "Failed to connect to the analysis service." });
+              setModalStep('error');
+            } finally {
+                 // Stop media stream here if not already stopped,
+                 // as capturing/preview is done after analysis attempt.
+                 // Exception: if 'age_input' keep video for a moment? No, better to stop.
+                 if (modalStep !== 'capturing') { // Ensure we don't stop if it's already moved to another step like error by other means
+                    stopMediaStream();
+                 }
             }
           }, duration);
 
         } catch (hiddenPlayError) {
           console.error("Error playing hidden processing video:", hiddenPlayError);
-          setStressMetrics({ error: "Failed to initialize video processing." });
-          setStressCheckStep('error');
+          setAnalysisResult({ error: "Failed to initialize video processing." });
+          setModalStep('error');
           stopMediaStream();
           cleanupCaptureTimers();
         }
       };
       hiddenProcessingVideo.onerror = (e) => {
         console.error("Video element error (hidden processing):", e);
-        setStressMetrics({ error: "Video processing element failed." });
-        setStressCheckStep('error');
+        setAnalysisResult({ error: "Video processing element failed." });
+        setModalStep('error');
         stopMediaStream();
         cleanupCaptureTimers();
       };
 
     } catch (err: any) {
-      console.error("Error in handleCheckStress (getUserMedia or general setup):", err);
+      console.error("Error in handleStartHeartRateCheck (getUserMedia or general setup):", err);
       let errorMessage = "Could not access camera or start analysis. Please check browser permissions.";
       if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
         errorMessage = "No camera found. Please ensure a camera is connected and enabled.";
       } else if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
         errorMessage = "Camera access denied. Please allow camera access in your browser settings.";
       }
-      setStressMetrics({ error: errorMessage });
-      setStressCheckStep('error'); // This will stop drawing loop via useEffect
+      setAnalysisResult({ error: errorMessage });
+      setModalStep('error');
       stopMediaStream();
       cleanupCaptureTimers();
     }
   };
 
-  const handleCloseStressCheckModal = () => {
-    setShowStressCheckModal(false); // This will trigger useEffect to stop loop
-    setStressCheckStep(null);      // This will also trigger useEffect to stop loop
+  const handleAgeSubmit = () => {
+    const ageNum = parseInt(userAgeInput);
+    if (isNaN(ageNum) || ageNum <= 0 || ageNum > 120) {
+        setAnalysisResult(prev => ({ ...prev, error: "Please enter a valid age (1-120)." }));
+        return;
+    }
+    setAnalysisResult(prev => ({...prev, error: undefined })); 
+    setSubmittedUserAge(ageNum);
+    setModalStep('recommendation');
+  };
+  
+  const handleCloseHeartRateModal = () => {
+    setShowHeartRateModal(false);
+    setModalStep(null);
     stopMediaStream();
     cleanupCaptureTimers();
+    setUserAgeInput('');
+    setSubmittedUserAge(null);
+    setAnalysisResult(null);
   };
 
   const handleExitLecture = () => {
     setIsAlertVisible(false);
-    handleCloseStressCheckModal();
+    handleCloseHeartRateModal();
     router.push('/');
   };
 
@@ -382,6 +409,7 @@ export default function LecturePage() {
 
   return (
     <div className="h-screen bg-gray-900 flex flex-col">
+      {/* ... (no change to header, iframe, chat button, chat panel) ... */}
       <div className="bg-gray-900 text-white p-4 shadow-md">
         <h1 className="text-2xl font-bold">{topic} Lecture</h1>
       </div>
@@ -427,25 +455,25 @@ export default function LecturePage() {
             <p className="text-gray-700 text-sm sm:text-base">You've been viewing for a while.</p>
             <div className="flex flex-col sm:flex-row justify-center space-y-3 sm:space-y-0 sm:space-x-4 mt-5 sm:mt-6">
               <button
-                onClick={handleCheckStress}
+                onClick={handleStartHeartRateCheck}
                 className="px-5 py-2.5 sm:px-6 sm:py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium w-full sm:w-auto text-sm sm:text-base disabled:opacity-50"
                 disabled={!modelsLoaded}
               >
-                {modelsLoaded ? "Check Your Stress" : "Loading Tools..."}
+                {modelsLoaded ? "Check Your Heart Rate" : "Loading Tools..."}
               </button>
               <button onClick={handleExitLecture} className="px-5 py-2.5 sm:px-6 sm:py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium w-full sm:w-auto text-sm sm:text-base">Exit Lecture</button>
             </div>
-            {!modelsLoaded && <p className="text-xs text-gray-500 mt-2">Stress check tools are loading, please wait.</p>}
+            {!modelsLoaded && <p className="text-xs text-gray-500 mt-2">Heart rate check tools are loading, please wait.</p>}
           </div>
         </div>
       )}
 
-      {showStressCheckModal && (
+      {showHeartRateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-[150] p-4" aria-modal="true" role="dialog">
           <div className="bg-gray-800 p-5 sm:p-6 rounded-xl shadow-2xl max-w-md w-full text-white space-y-4">
-            <h2 className="text-xl font-semibold text-center text-purple-300">Stress Check</h2>
+            <h2 className="text-xl font-semibold text-center text-purple-300">Heart Rate Check</h2>
 
-            {(stressCheckStep === 'capturing' || (stressCheckStep === 'analyzing' && videoPreviewRef.current?.srcObject) ) && (
+            {(modalStep === 'capturing' || (modalStep === 'analyzing_hr' && videoPreviewRef.current?.srcObject)) && (
               <div className="relative w-full h-48 sm:h-60 bg-gray-700 rounded-md border border-gray-600">
                 <video
                   ref={videoPreviewRef}
@@ -460,59 +488,69 @@ export default function LecturePage() {
                 />
               </div>
             )}
-
-            {stressCheckStep === 'capturing' && (
+            
+            {modalStep === 'capturing' && (
               <p className="text-center text-gray-300">Capturing video for 10 seconds. Please keep your forehead aligned.</p>
             )}
-
-            {stressCheckStep === 'analyzing' && !videoPreviewRef.current?.srcObject && ( // If video stream was stopped before analysis UI shows
+            
+            {modalStep === 'analyzing_hr' && !videoPreviewRef.current?.srcObject && (
                  <div className="w-full h-48 sm:h-60 bg-gray-700 rounded-md flex items-center justify-center border border-gray-600">
-                    {/* Placeholder: Maybe show a static image or just the loader below */}
+                    {/* Placeholder if video already stopped */}
                 </div>
             )}
 
-            {stressCheckStep === 'analyzing' && (
+            {modalStep === 'analyzing_hr' && (
               <div className="text-center py-4">
                 <FiLoader className="animate-spin text-purple-400 mx-auto text-4xl sm:text-5xl mb-3" />
-                <p className="text-gray-300">Analyzing your stress levels...</p>
+                <p className="text-gray-300">Analyzing your heart rate...</p>
               </div>
             )}
 
-            {stressCheckStep === 'results' && stressMetrics && (
+            {modalStep === 'age_input' && analysisResult?.avg_heart_rate && (
               <div className="space-y-3 text-center">
-                <p className="text-lg font-semibold text-purple-300">Analysis Complete!</p>
-                {typeof stressMetrics.avg_heart_rate === 'number' && (
-                  <p>Average Heart Rate: <span className="font-bold text-purple-100">{stressMetrics.avg_heart_rate.toFixed(1)} BPM</span></p>
-                )}
-                {typeof stressMetrics.lf_hf_ratio === 'number' && (
-                  <p>LF/HF Ratio: <span className="font-bold text-purple-100">{stressMetrics.lf_hf_ratio.toFixed(2)}</span></p>
-                )}
-                 {typeof stressMetrics.sdnn === 'number' && (
-                  <p>SDNN: <span className="font-bold text-purple-100">{stressMetrics.sdnn.toFixed(2)} ms</span></p>
-                )}
-                 {typeof stressMetrics.rmssd === 'number' && (
-                  <p>RMSSD: <span className="font-bold text-purple-100">{stressMetrics.rmssd.toFixed(2)} ms</span></p>
-                )}
-                {stressMetrics.error ? (
-                    <p className="text-red-400 font-semibold pt-2">{stressMetrics.error}</p>
-                ) : isStressHigh ? (
-                    <p className="text-red-400 font-semibold pt-2">⚠️ High stress level detected. Consider taking a break.</p>
-                ) : (
-                    <p className="text-green-400 font-semibold pt-2">✅ Stress level appears normal. Keep up the good work!</p>
-                )}
+                <p className="text-lg">Estimated Heart Rate: <span className="font-bold text-purple-100">{analysisResult.avg_heart_rate.toFixed(1)} BPM</span></p>
+                <div className="flex flex-col items-center space-y-2">
+                  <label htmlFor="ageInput" className="text-sm text-gray-300">Please enter your age:</label>
+                  <input
+                    type="number"
+                    id="ageInput"
+                    value={userAgeInput}
+                    onChange={(e) => setUserAgeInput(e.target.value)}
+                    className="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-purple-500 focus:border-purple-500 block w-1/2 p-2.5 mx-auto"
+                    placeholder="e.g., 25"
+                  />
+                   {analysisResult.error && <p className="text-xs text-red-400 mt-1">{analysisResult.error}</p>}
+                  <button
+                    onClick={handleAgeSubmit}
+                    className="px-5 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 focus:ring-4 focus:ring-purple-500 transition-colors font-medium"
+                  >
+                    Submit Age
+                  </button>
+                </div>
               </div>
             )}
 
-            {stressCheckStep === 'error' && stressMetrics && (
+            {modalStep === 'recommendation' && analysisResult?.avg_heart_rate && submittedUserAge !== null && (
+              <div className="space-y-3 text-center">
+                <p>Heart Rate: <span className="font-bold text-purple-100">{analysisResult.avg_heart_rate.toFixed(1)} BPM</span> (Age: {submittedUserAge})</p>
+                {isHeartRateConcerning() ? (
+                    <p className="text-red-400 font-semibold pt-2">⚠️ Your heart rate is outside the typical range for your age during this activity. Consider taking a break.</p>
+                ) : (
+                    <p className="text-green-400 font-semibold pt-2">✅ Your heart rate appears normal for your age. Keep up the good work!</p>
+                )}
+              </div>
+            )}
+            
+            {modalStep === 'error' && analysisResult?.error && (
               <div className="text-center text-red-400 p-4 bg-red-900 bg-opacity-30 rounded-md">
                 <p className="font-semibold">Analysis Error</p>
-                <p className="text-sm">{stressMetrics.error || "An unknown error occurred."}</p>
+                <p className="text-sm">{analysisResult.error}</p>
               </div>
             )}
 
             <div className="flex flex-col space-y-3 sm:space-y-0 sm:flex-row sm:justify-center sm:space-x-3 pt-2">
-              {stressCheckStep === 'results' && !stressMetrics?.error ? (
-                isStressHigh ? (
+              {modalStep === 'recommendation' ? (
+                isHeartRateConcerning() ? (
                   <button
                     onClick={handleExitLecture}
                     className="w-full sm:w-auto px-5 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 focus:ring-4 focus:ring-red-500 transition-colors font-medium"
@@ -522,7 +560,7 @@ export default function LecturePage() {
                 ) : (
                   <>
                     <button
-                      onClick={handleCloseStressCheckModal}
+                      onClick={handleCloseHeartRateModal}
                       className="w-full sm:w-auto px-5 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-4 focus:ring-green-500 transition-colors font-medium"
                     >
                       Continue Learning
@@ -535,22 +573,31 @@ export default function LecturePage() {
                     </button>
                   </>
                 )
-              ) : stressCheckStep === 'error' ? (
+              ) : modalStep === 'error' || modalStep === 'age_input' ? ( // Close button for error, age_input handled by its own submit
+                 (modalStep === 'error' || (modalStep === 'age_input' && !analysisResult?.avg_heart_rate)) && // Show close if error or if age_input but no HR (edge case)
                  <button
-                    onClick={handleCloseStressCheckModal}
+                    onClick={handleCloseHeartRateModal}
                     className="w-full px-5 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 focus:ring-4 focus:ring-purple-500 transition-colors font-medium"
                   >
                     Close
                   </button>
-              ) : ( // Capturing or Analyzing steps
+              ) : ( // Capturing or Analyzing_hr steps
                  <button
-                    onClick={handleCloseStressCheckModal}
+                    onClick={handleCloseHeartRateModal}
                     className="w-full px-5 py-2.5 bg-gray-500 text-white rounded-lg hover:bg-gray-600 focus:ring-4 focus:ring-gray-400 transition-colors font-medium"
                   >
-                    Cancel Stress Check
+                    Cancel Heart Rate Check
                   </button>
               )}
             </div>
+            { modalStep === 'age_input' && (
+                 <button
+                    onClick={handleCloseHeartRateModal}
+                    className="w-full mt-2 px-5 py-2.5 bg-gray-500 text-white rounded-lg hover:bg-gray-600 focus:ring-4 focus:ring-gray-400 transition-colors font-medium"
+                  >
+                    Cancel
+                  </button>
+            )}
           </div>
         </div>
       )}
