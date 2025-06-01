@@ -1,6 +1,17 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
-import { FaRobot, FaUserCircle, FaSpinner, FaExclamationCircle, FaPlay, FaPause, FaDownload } from 'react-icons/fa';
+import {
+  FaRobot,
+  FaUserCircle,
+  FaSpinner,
+  FaExclamationCircle,
+  FaPlay,
+  FaPause,
+  FaDownload,
+  FaCopy,
+  FaPhone,
+  FaCheckCircle // Added for copy success indication
+} from 'react-icons/fa';
 import jsPDF from 'jspdf';
 
 interface ChatBotProps {
@@ -33,13 +44,13 @@ export default function ChatBot({ videoId, topic }: ChatBotProps) {
   const generatePdf = () => {
     const doc = new jsPDF(); // Default unit is 'mm', pageSize is A4
 
-    const margin = 20; 
-    let yPos = margin; 
-    const pageHeight = doc.internal.pageSize.height; 
-    const pageWidth = doc.internal.pageSize.width; 
-    const contentWidth = pageWidth - margin * 2; 
+    const margin = 20;
+    let yPos = margin;
+    const pageHeight = doc.internal.pageSize.height;
+    const pageWidth = doc.internal.pageSize.width;
+    const contentWidth = pageWidth - margin * 2;
 
-    const titleFontSize = 16; 
+    const titleFontSize = 16;
     const messageFontSize = 10;
 
     const getLineHeightInPageUnits = (fontSizeInPt: number) => {
@@ -80,9 +91,7 @@ export default function ChatBot({ videoId, topic }: ChatBotProps) {
     messages.forEach((msg) => {
       const activeColorRGB = msg.isUser ? hexToRgb(userColorHex) : hexToRgb(botColorHex);
       const activeFont = msg.isUser ? 'helvetica' : 'courier';
-      // User's prefix "[You]:" will be bold, bot's "[Bot]:" will be normal.
-      // If you want bot's prefix bold as well, change 'normal' to 'bold' below for the bot.
-      const activeFontStyle = msg.isUser ? 'bold' : 'normal'; 
+      const activeFontStyle = msg.isUser ? 'bold' : 'normal';
       
       doc.setFont(activeFont, activeFontStyle);
       doc.setTextColor(activeColorRGB[0], activeColorRGB[1], activeColorRGB[2]);
@@ -145,7 +154,7 @@ export default function ChatBot({ videoId, topic }: ChatBotProps) {
     if (speechState.isSpeaking && speechState.currentUtterance?.text === text) {
       window.speechSynthesis.pause();
       setSpeechState(prev => ({ ...prev, isSpeaking: false }));
-    } else if (!speechState.isSpeaking && speechState.currentUtterance?.text === text) {
+    } else if (!speechState.isSpeaking && speechState.currentUtterance?.text === text && window.speechSynthesis.paused) {
       window.speechSynthesis.resume();
       setSpeechState(prev => ({ ...prev, isSpeaking: true }));
     } else {
@@ -155,7 +164,9 @@ export default function ChatBot({ videoId, topic }: ChatBotProps) {
 
   useEffect(() => {
     return () => {
-      window.speechSynthesis.cancel();
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
     };
   }, []);
 
@@ -226,40 +237,92 @@ export default function ChatBot({ videoId, topic }: ChatBotProps) {
     }
   };
 
-  const MessageBubble = ({ msg }: { msg: Message }) => (
-    <div
-      className={`max-w-xs sm:max-w-md p-3 rounded-2xl shadow-md ${
-        msg.isUser
-          ? 'bg-purple-600 text-white rounded-br-none'
-          : 'bg-gray-800 text-gray-200 rounded-bl-none'
-      }`}
-    >
-      <div className="flex justify-between items-start gap-2">
+  const MessageBubble = ({ msg }: { msg: Message }) => {
+    const [copied, setCopied] = useState(false);
+
+    const handleCopyText = (textToCopy: string) => {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(textToCopy).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000); // Reset after 2 seconds
+        }).catch(err => {
+          console.error('Failed to copy text: ', err);
+          alert('Failed to copy text. Please try again or copy manually.');
+        });
+      } else {
+        alert('Clipboard API not available. Please copy manually.');
+      }
+    };
+
+    const handleCallMe = (messageText: string) => {
+      // Placeholder: In a real app, this would trigger a call or a "request a call" flow.
+      console.log(`"Call Me" button clicked for message: ${messageText}`);
+      alert(`"Call Me" feature demo: You requested a call about "${messageText.substring(0, 50)}...". In a real app, this might open your dialer or a contact form.`);
+      // Example for opening a dialer (uncomment if you have a number):
+      // window.location.href = 'tel:+1234567890';
+    };
+
+    const isCurrentSpeakingMessage = speechState.isSpeaking && speechState.currentUtterance?.text === msg.text;
+    const isCurrentPausedMessage = !speechState.isSpeaking && speechState.currentUtterance?.text === msg.text && window.speechSynthesis && window.speechSynthesis.paused;
+
+
+    return (
+      <div
+        className={`max-w-xs sm:max-w-md p-3 rounded-2xl shadow-md flex flex-col ${
+          msg.isUser
+            ? 'bg-purple-600 text-white rounded-br-none'
+            : 'bg-gray-800 text-gray-200 rounded-bl-none'
+        }`}
+      >
         <p className="whitespace-pre-wrap flex-1">{msg.text}</p>
+
         {!msg.isUser && (
-          <button
-            onClick={() => toggleSpeech(msg.text)}
-            className="text-gray-300 hover:text-purple-400 transition-colors ml-2 shrink-0"
-            aria-label={speechState.isSpeaking && speechState.currentUtterance?.text === msg.text ? "Pause speech" : "Play speech"}
-          >
-            {speechState.isSpeaking && speechState.currentUtterance?.text === msg.text ? (
-              <FaPause className="shrink-0" />
-            ) : (
-              <FaPlay className="shrink-0" />
-            )}
-          </button>
+          <div className="flex items-center space-x-3 mt-2 pt-2 border-t border-gray-700/50">
+            <button
+              onClick={() => toggleSpeech(msg.text)}
+              className="flex items-center text-xs text-gray-400 hover:text-purple-400 transition-colors"
+              aria-label={isCurrentSpeakingMessage ? "Pause speaking this message" : "Speak this message"}
+              title={isCurrentSpeakingMessage ? "Pause speech" : (isCurrentPausedMessage ? "Resume speech" : "Play speech")}
+            >
+              {isCurrentSpeakingMessage ? (
+                <FaPause size={14} className="mr-1" />
+              ) : (
+                <FaPlay size={14} className="mr-1" />
+              )}
+              {isCurrentSpeakingMessage ? 'Pause' : (isCurrentPausedMessage ? 'Resume' : 'Speak')}
+            </button>
+            <button
+              onClick={() => handleCopyText(msg.text)}
+              className="flex items-center text-xs text-gray-400 hover:text-green-400 transition-colors"
+              aria-label="Copy message text"
+              title={copied ? "Copied to clipboard!" : "Copy message text"}
+            >
+              {copied ? <FaCheckCircle size={14} className="mr-1 text-green-500" /> : <FaCopy size={14} className="mr-1" />}
+              {copied ? "Copied" : "Copy"}
+            </button>
+            <button
+              onClick={() => handleCallMe(msg.text)}
+              className="flex items-center text-xs text-gray-400 hover:text-blue-400 transition-colors"
+              aria-label="Request a call regarding this message"
+              title="Request a call regarding this message"
+            >
+              <FaPhone size={14} className="mr-1" />
+              Call Me
+            </button>
+          </div>
+        )}
+
+        {msg.timestamp && (
+          <span className="text-xs opacity-70 mt-2 block text-right">
+            {new Date(msg.timestamp).toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit'
+            })}
+          </span>
         )}
       </div>
-      {msg.timestamp && (
-        <span className="text-xs opacity-70 mt-1 block text-right">
-          {new Date(msg.timestamp).toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit'
-          })}
-        </span>
-      )}
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="flex flex-col h-full bg-gray-900 rounded-xl shadow-2xl overflow-hidden border border-gray-700">
@@ -286,7 +349,7 @@ export default function ChatBot({ videoId, topic }: ChatBotProps) {
             Start a conversation by asking a question about the lecture.
             {typeof window !== 'undefined' && !window.speechSynthesis && (
               <div className="text-red-400 text-sm mt-2">
-                Note: Text-to-speech is not supported in your browser
+                Note: Text-to-speech is not supported in your browser.
               </div>
             )}
           </div>
@@ -302,7 +365,7 @@ export default function ChatBot({ videoId, topic }: ChatBotProps) {
                 <FaRobot size={20} />
               </div>
             )}
-            <MessageBubble msg={msg} />
+            <MessageBubble msg={msg} /> {/* MessageBubble now handles its internal layout */}
             {msg.isUser && (
               <div className="mt-1 text-gray-400 shrink-0">
                 <FaUserCircle size={20} />
