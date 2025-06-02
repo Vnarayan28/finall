@@ -3,11 +3,9 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Sparkles, Moon, Sun, ArrowLeft, Lock, Mail, Loader2, Zap } from 'lucide-react'; // Added Zap for consistency if needed
-// Assuming AnimatedGradientBg is in components folder
+import { Sparkles, Moon, Sun, ArrowLeft, Lock, Mail, Loader2, Zap } from 'lucide-react'; 
 import AnimatedGradientBg from '../components/AnimatedGradientBg'; 
-// Assuming NavBarLanding is in the same folder or adjust path
-import NavBarLanding from '../NavBarLanding'; // If you want the full navbar
+import NavBarLanding from '../NavBarLanding'; 
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -25,7 +23,7 @@ export default function LoginPage() {
     setMessage({ text: '', type: '' });
 
     try {
-      const response = await fetch('http://localhost:8000/login', { // Ensure this URL is correct for your environment
+      const response = await fetch('http://localhost:8000/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -42,7 +40,7 @@ export default function LoginPage() {
       }
       localStorage.setItem('authToken', data.token);
       setMessage({ text: 'Login successful! Redirecting...', type: 'success' });
-      setTimeout(() => router.push('/input'), 1500); // Adjust redirect path
+      setTimeout(() => router.push('/input'), 1500); 
     } catch (err: any) {
       setMessage({ text: err.message || 'An unexpected error occurred.', type: 'error' });
     } finally {
@@ -65,7 +63,7 @@ export default function LoginPage() {
     <div className={`min-h-screen flex flex-col items-center justify-center relative overflow-hidden p-4 selection:bg-pink-500 selection:text-white ${isDarkMode ? "dark" : ""}`}>
       <AnimatedGradientBg isDarkMode={isDarkMode} />
       
-      {/* Standalone Theme Toggle & Back Button (if not using full NavBarLanding) */}
+      {/* Standalone Theme Toggle & Back Button */}
       <div className="fixed top-4 left-4 z-50">
         <motion.button
           onClick={() => router.back()}
@@ -117,7 +115,7 @@ export default function LoginPage() {
       >
         <motion.div 
           className="flex flex-col items-center mb-8"
-          variants={cardItemVariants} // Stagger children if needed, or apply directly
+          variants={cardItemVariants}
         >
           <motion.div
             className={`p-3.5 rounded-xl mb-5 shadow-lg

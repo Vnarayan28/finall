@@ -2,11 +2,9 @@ import logging
 import requests
 from fastapi import APIRouter, HTTPException
 from datetime import datetime
-# from bson import ObjectId # Uncomment if you add ObjectId validation
-# from bson.errors import InvalidId # Uncomment if you add ObjectId validation
 
 from app.core.config import YOUTUBE_API_KEY
-from app.db.setup import lectures_collection # users_collection also if validating user_id
+from app.db.setup import lectures_collection
 from app.utils.helpers import parse_duration
 
 logger = logging.getLogger(__name__)
@@ -137,7 +135,7 @@ async def generate_lecture_endpoint(topic: str):
         raise HTTPException(status_code=500, detail="Failed to fetch videos. An unexpected error occurred.")
 
 @router.get("/user/lectures", summary="Get lectures for a specific user")
-async def get_user_lectures_endpoint(user_id: str): # user_id is now a query parameter
+async def get_user_lectures_endpoint(user_id: str):
     try:
         # Optional: Validate user_id format and existence
         # try:
@@ -158,10 +156,9 @@ async def get_user_lectures_endpoint(user_id: str): # user_id is now a query par
         
         if not user_lectures:
             logger.info(f"No lectures found for user_id: {user_id}")
-            # return {"message": f"No lectures found for user_id: {user_id}", "lectures": []} # Alternative
         
         return {"lectures": user_lectures}
-    except HTTPException: # Re-raise HTTPExceptions from potential validation
+    except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Failed to retrieve lectures for user {user_id}: {str(e)}", exc_info=True)

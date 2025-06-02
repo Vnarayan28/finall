@@ -7,19 +7,13 @@ import numpy as np
 from deepface import DeepFace
 
 from app.services.heart_metrics import HeartMetricsCalculator
-# from pydantic import BaseModel, Field # If you want to use Pydantic for input validation
-# from typing import List
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-# Optional: Pydantic model for input validation
-# class StressAnalysisInput(BaseModel):
-#     frames: List[str] = Field(..., min_items=1)
-
 
 @router.post("/analyze-stress", summary="Analyze stress from video frames")
-async def analyze_stress_endpoint(data: dict): # Replace dict with StressAnalysisInput if using Pydantic
+async def analyze_stress_endpoint(data: dict): 
     try:
         frames = data.get('frames', [])
         if not frames: # Basic validation

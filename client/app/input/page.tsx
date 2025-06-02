@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import AnimatedGradientBg from "../components/AnimatedGradientBg"; 
 import NavBarLanding from "../NavBarLanding"; 
 
-// Helper function to extract YouTube Video ID
+// function to extract YouTube Video ID
 function getYoutubeVideoId(url: string): string | null {
   if (!url) return null;
   const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;

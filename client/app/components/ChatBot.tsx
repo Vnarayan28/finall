@@ -10,7 +10,7 @@ import {
   FaDownload,
   FaCopy,
   FaPhone,
-  FaCheckCircle // Added for copy success indication
+  FaCheckCircle
 } from 'react-icons/fa';
 import jsPDF from 'jspdf';
 
@@ -57,9 +57,8 @@ export default function ChatBot({ videoId, topic }: ChatBotProps) {
         return (fontSizeInPt / doc.internal.scaleFactor) * 1.4; // 1.4 line spacing
     };
 
-    // Add title
     doc.setFontSize(titleFontSize);
-    doc.setTextColor(0, 0, 0); // Black for title
+    doc.setTextColor(0, 0, 0); // title color 
     let currentLineHeight = getLineHeightInPageUnits(titleFontSize);
     const titleLines = doc.splitTextToSize(`Chat Conversation - ${topic}`, contentWidth);
     titleLines.forEach((line: string) => {
@@ -79,7 +78,7 @@ export default function ChatBot({ videoId, topic }: ChatBotProps) {
     currentLineHeight = getLineHeightInPageUnits(messageFontSize);
 
     const userColorHex = '#9333EA'; // Purple for User
-    const botColorHex = '#000000';   // PURE BLACK for Bot messages
+    const botColorHex = '#000000';   // BLACK for Bot messages
 
     const hexToRgb = (hex: string) => {
       const r = parseInt(hex.slice(1, 3), 16);
@@ -244,7 +243,7 @@ export default function ChatBot({ videoId, topic }: ChatBotProps) {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(textToCopy).then(() => {
           setCopied(true);
-          setTimeout(() => setCopied(false), 2000); // Reset after 2 seconds
+          setTimeout(() => setCopied(false), 2000);
         }).catch(err => {
           console.error('Failed to copy text: ', err);
           alert('Failed to copy text. Please try again or copy manually.');
@@ -253,13 +252,11 @@ export default function ChatBot({ videoId, topic }: ChatBotProps) {
         alert('Clipboard API not available. Please copy manually.');
       }
     };
-
+    // we will use retell api and the ai will call us, but the api is paid so only for premium users
     const handleCallMe = (messageText: string) => {
-      // Placeholder: In a real app, this would trigger a call or a "request a call" flow.
       console.log(`"Call Me" button clicked for message: ${messageText}`);
       alert(`"Call Me" feature demo: You requested a call about "${messageText.substring(0, 50)}...". In a real app, this might open your dialer or a contact form.`);
-      // Example for opening a dialer (uncomment if you have a number):
-      // window.location.href = 'tel:+1234567890';
+
     };
 
     const isCurrentSpeakingMessage = speechState.isSpeaking && speechState.currentUtterance?.text === msg.text;
@@ -365,7 +362,7 @@ export default function ChatBot({ videoId, topic }: ChatBotProps) {
                 <FaRobot size={20} />
               </div>
             )}
-            <MessageBubble msg={msg} /> {/* MessageBubble now handles its internal layout */}
+            <MessageBubble msg={msg} /> 
             {msg.isUser && (
               <div className="mt-1 text-gray-400 shrink-0">
                 <FaUserCircle size={20} />

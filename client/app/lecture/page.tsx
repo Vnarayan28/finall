@@ -17,7 +17,7 @@ export default function LecturePage() {
 
   const [showHeartRateModal, setShowHeartRateModal] = useState(false);
   const [modalStep, setModalStep] = useState<'capturing' | 'analyzing_hr' | 'age_input' | 'recommendation' | 'error' | null>(null);
-  
+
   const [analysisResult, setAnalysisResult] = useState<{ avg_heart_rate?: number; error?: string } | null>(null);
   const [userAgeInput, setUserAgeInput] = useState<string>('');
   const [submittedUserAge, setSubmittedUserAge] = useState<number | null>(null);
@@ -38,34 +38,44 @@ export default function LecturePage() {
 
   const isHeartRateConcerning = useCallback((): boolean => {
     if (!analysisResult?.avg_heart_rate || submittedUserAge === null) return false;
-    
+
     const hr = analysisResult.avg_heart_rate;
     const age = submittedUserAge;
 
-    if (age >= 18) {
-      // Adults: Resting heart rate typically 60-100.
-      // Let's flag if significantly outside a wider range during a lecture setting.
-      return hr < 45 || hr > 170; 
-    } else { // < 18 (Children/Teens)
-      // Children/teens have higher resting heart rates.
-      // e.g. Teens (13-18 years): 50-90. Children (6-12 years): 70-110.
-      // Let's use a broad range for "concerning" during a lecture.
-      return hr < 50 || hr > 160;
+    if (age >= 18 && age <= 100) {
+      return hr < 70 || hr > 100;
     }
+    // Adolescents (13-17 years)
+    else if (age >= 13 && age < 18) {
+      return hr < 60 || hr > 100;
+    }
+    // School-age children (6-12 years)
+    else if (age >= 6 && age < 13) { 
+      return hr < 70 || hr > 120;
+    }
+    // Younger children (1-5 years)
+    else if (age >= 1 && age < 6) { 
+      return hr < 80 || hr > 150;
+    }
+    // Older Adults (101-120 years) - Applying same as 18-100 group
+    else if (age > 100 && age <= 120) {
+      return hr < 70 || hr > 100;
+    }
+    return false;
   }, [analysisResult, submittedUserAge]);
 
 
   const drawForeheadBox = useCallback(async () => {
     if (!faceApiModel || !videoPreviewRef.current || !canvasRef.current || !modelsLoaded ||
-        !videoPreviewRef.current.srcObject || !isVideoStreamReady || videoPreviewRef.current.paused || videoPreviewRef.current.ended ||
-        !showHeartRateModal || modalStep !== 'capturing') {
+      !videoPreviewRef.current.srcObject || !isVideoStreamReady || videoPreviewRef.current.paused || videoPreviewRef.current.ended ||
+      !showHeartRateModal || modalStep !== 'capturing') {
 
       if (!(showHeartRateModal && modalStep === 'capturing')) {
-          if (animationFrameIdRef.current) {
-              cancelAnimationFrame(animationFrameIdRef.current);
-              animationFrameIdRef.current = null;
-          }
-      } // No 'else if' needed here, the outer condition handles starting/stopping primarily.
+        if (animationFrameIdRef.current) {
+          cancelAnimationFrame(animationFrameIdRef.current);
+          animationFrameIdRef.current = null;
+        }
+      } 
       return;
     }
 
@@ -81,21 +91,21 @@ export default function LecturePage() {
 
     const displaySize = { width: video.clientWidth, height: video.clientHeight };
     if (displaySize.width === 0 || displaySize.height === 0) {
-        if (animationFrameIdRef.current) cancelAnimationFrame(animationFrameIdRef.current);
-        animationFrameIdRef.current = requestAnimationFrame(drawForeheadBox);
-        return;
+      if (animationFrameIdRef.current) cancelAnimationFrame(animationFrameIdRef.current);
+      animationFrameIdRef.current = requestAnimationFrame(drawForeheadBox);
+      return;
     }
 
     if (canvas.width !== displaySize.width || canvas.height !== displaySize.height) {
-        faceApiModel.matchDimensions(canvas, displaySize);
+      faceApiModel.matchDimensions(canvas, displaySize);
     }
 
     context.clearRect(0, 0, canvas.width, canvas.height);
 
     const detections = await faceApiModel.detectSingleFace(
-        video,
-        new faceApiModel.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.4 })
-      ).withFaceLandmarks();
+      video,
+      new faceApiModel.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.4 })
+    ).withFaceLandmarks();
 
     if (detections && detections.landmarks) {
       const resizedDetections = faceApiModel.resizeResults(detections, displaySize);
@@ -118,21 +128,21 @@ export default function LecturePage() {
         const foreheadX = faceBox.x + (faceBox.width - foreheadWidth) / 2;
 
         if (foreheadHeight > 10 && foreheadWidth > 10) {
-            context.strokeStyle = 'rgba(192, 132, 252, 0.9)';
-            context.lineWidth = 3;
-            context.strokeRect(foreheadX, foreheadTop, foreheadWidth, foreheadHeight);
+          context.strokeStyle = 'rgba(192, 132, 252, 0.9)';
+          context.lineWidth = 3;
+          context.strokeRect(foreheadX, foreheadTop, foreheadWidth, foreheadHeight);
         }
       }
     }
 
     if (modalStep === 'capturing' && showHeartRateModal) {
-        if (animationFrameIdRef.current) cancelAnimationFrame(animationFrameIdRef.current);
-        animationFrameIdRef.current = requestAnimationFrame(drawForeheadBox);
+      if (animationFrameIdRef.current) cancelAnimationFrame(animationFrameIdRef.current);
+      animationFrameIdRef.current = requestAnimationFrame(drawForeheadBox);
     } else {
-        if (animationFrameIdRef.current) {
-            cancelAnimationFrame(animationFrameIdRef.current);
-            animationFrameIdRef.current = null;
-        }
+      if (animationFrameIdRef.current) {
+        cancelAnimationFrame(animationFrameIdRef.current);
+        animationFrameIdRef.current = null;
+      }
     }
   }, [faceApiModel, modelsLoaded, showHeartRateModal, modalStep, isVideoStreamReady]);
 
@@ -169,8 +179,8 @@ export default function LecturePage() {
         animationFrameIdRef.current = null;
       }
       if (canvasRef.current && modalStep !== 'capturing') {
-          const context = canvasRef.current.getContext('2d');
-          context?.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+        const context = canvasRef.current.getContext('2d');
+        context?.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
       }
     }
     return () => {
@@ -226,12 +236,12 @@ export default function LecturePage() {
     setUserAgeInput('');
     setSubmittedUserAge(null);
     cleanupCaptureTimers();
-    setIsVideoStreamReady(false); 
+    setIsVideoStreamReady(false);
 
     if (!modelsLoaded || !faceApiModel) {
-        setAnalysisResult({ error: "Face detection tools are not ready. Please wait or try refreshing." });
-        setModalStep('error');
-        return;
+      setAnalysisResult({ error: "Face detection tools are not ready. Please wait or try refreshing." });
+      setModalStep('error');
+      return;
     }
     setModalStep('capturing');
 
@@ -297,16 +307,16 @@ export default function LecturePage() {
             setModalStep('analyzing_hr');
 
             try {
-              if (frames.length < (captureRate * duration / 1000 / 2) ) { // e.g. less than 50 frames for 10s at 10fps
+              if (frames.length < (captureRate * duration / 1000 / 2)) { 
                 setAnalysisResult({ error: `Not enough video frames captured (${frames.length}). Ensure camera is unobstructed.` });
                 setModalStep('error');
-                stopMediaStream(); // Stop stream as analysis won't proceed
+                stopMediaStream();
                 return;
               }
               const res = await fetch("/api/analyze-stress", { // This API return { avg_heart_rate: number }
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ frames, fps: captureRate }), 
+                body: JSON.stringify({ frames, fps: captureRate }),
               });
               const data = await res.json();
 
@@ -322,12 +332,9 @@ export default function LecturePage() {
               setAnalysisResult({ error: "Failed to connect to the analysis service." });
               setModalStep('error');
             } finally {
-                 // Stop media stream here if not already stopped,
-                 // as capturing/preview is done after analysis attempt.
-                 // Exception: if 'age_input' keep video for a moment? No, better to stop.
-                 if (modalStep !== 'capturing') { // Ensure we don't stop if it's already moved to another step like error by other means
-                    stopMediaStream();
-                 }
+              if (modalStep !== 'capturing') { 
+                stopMediaStream();
+              }
             }
           }, duration);
 
@@ -365,14 +372,14 @@ export default function LecturePage() {
   const handleAgeSubmit = () => {
     const ageNum = parseInt(userAgeInput);
     if (isNaN(ageNum) || ageNum <= 0 || ageNum > 120) {
-        setAnalysisResult(prev => ({ ...prev, error: "Please enter a valid age (1-120)." }));
-        return;
+      setAnalysisResult(prev => ({ ...prev, error: "Please enter a valid age (1-120)." }));
+      return;
     }
-    setAnalysisResult(prev => ({...prev, error: undefined })); 
+    setAnalysisResult(prev => ({ ...prev, error: undefined }));
     setSubmittedUserAge(ageNum);
     setModalStep('recommendation');
   };
-  
+
   const handleCloseHeartRateModal = () => {
     setShowHeartRateModal(false);
     setModalStep(null);
@@ -409,7 +416,6 @@ export default function LecturePage() {
 
   return (
     <div className="h-screen bg-gray-900 flex flex-col">
-      {/* ... (no change to header, iframe, chat button, chat panel) ... */}
       <div className="bg-gray-900 text-white p-4 shadow-md">
         <h1 className="text-2xl font-bold">{topic} Lecture</h1>
       </div>
@@ -488,15 +494,14 @@ export default function LecturePage() {
                 />
               </div>
             )}
-            
+
             {modalStep === 'capturing' && (
               <p className="text-center text-gray-300">Capturing video for 10 seconds. Please keep your forehead aligned.</p>
             )}
-            
+
             {modalStep === 'analyzing_hr' && !videoPreviewRef.current?.srcObject && (
-                 <div className="w-full h-48 sm:h-60 bg-gray-700 rounded-md flex items-center justify-center border border-gray-600">
-                    {/* Placeholder if video already stopped */}
-                </div>
+              <div className="w-full h-48 sm:h-60 bg-gray-700 rounded-md flex items-center justify-center border border-gray-600">
+              </div>
             )}
 
             {modalStep === 'analyzing_hr' && (
@@ -519,7 +524,7 @@ export default function LecturePage() {
                     className="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-purple-500 focus:border-purple-500 block w-1/2 p-2.5 mx-auto"
                     placeholder="e.g., 25"
                   />
-                   {analysisResult.error && <p className="text-xs text-red-400 mt-1">{analysisResult.error}</p>}
+                  {analysisResult.error && <p className="text-xs text-red-400 mt-1">{analysisResult.error}</p>}
                   <button
                     onClick={handleAgeSubmit}
                     className="px-5 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 focus:ring-4 focus:ring-purple-500 transition-colors font-medium"
@@ -534,13 +539,13 @@ export default function LecturePage() {
               <div className="space-y-3 text-center">
                 <p>Heart Rate: <span className="font-bold text-purple-100">{analysisResult.avg_heart_rate.toFixed(1)} BPM</span> (Age: {submittedUserAge})</p>
                 {isHeartRateConcerning() ? (
-                    <p className="text-red-400 font-semibold pt-2">⚠️ Your heart rate is outside the typical range for your age during this activity. Consider taking a break.</p>
+                  <p className="text-red-400 font-semibold pt-2">⚠️ Your heart rate is outside the typical range for your age during this activity. Consider taking a break.</p>
                 ) : (
-                    <p className="text-green-400 font-semibold pt-2">✅ Your heart rate appears normal for your age. Keep up the good work!</p>
+                  <p className="text-green-400 font-semibold pt-2">✅ Your heart rate appears normal for your age. Keep up the good work!</p>
                 )}
               </div>
             )}
-            
+
             {modalStep === 'error' && analysisResult?.error && (
               <div className="text-center text-red-400 p-4 bg-red-900 bg-opacity-30 rounded-md">
                 <p className="font-semibold">Analysis Error</p>
@@ -574,29 +579,29 @@ export default function LecturePage() {
                   </>
                 )
               ) : modalStep === 'error' || modalStep === 'age_input' ? ( // Close button for error, age_input handled by its own submit
-                 (modalStep === 'error' || (modalStep === 'age_input' && !analysisResult?.avg_heart_rate)) && // Show close if error or if age_input but no HR (edge case)
-                 <button
-                    onClick={handleCloseHeartRateModal}
-                    className="w-full px-5 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 focus:ring-4 focus:ring-purple-500 transition-colors font-medium"
-                  >
-                    Close
-                  </button>
-              ) : ( // Capturing or Analyzing_hr steps
-                 <button
-                    onClick={handleCloseHeartRateModal}
-                    className="w-full px-5 py-2.5 bg-gray-500 text-white rounded-lg hover:bg-gray-600 focus:ring-4 focus:ring-gray-400 transition-colors font-medium"
-                  >
-                    Cancel Heart Rate Check
-                  </button>
+                (modalStep === 'error' || (modalStep === 'age_input' && !analysisResult?.avg_heart_rate)) && // Show close if error or if age_input but no HR (edge case)
+                <button
+                  onClick={handleCloseHeartRateModal}
+                  className="w-full px-5 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 focus:ring-4 focus:ring-purple-500 transition-colors font-medium"
+                >
+                  Close
+                </button>
+              ) : ( 
+                <button
+                  onClick={handleCloseHeartRateModal}
+                  className="w-full px-5 py-2.5 bg-gray-500 text-white rounded-lg hover:bg-gray-600 focus:ring-4 focus:ring-gray-400 transition-colors font-medium"
+                >
+                  Cancel Heart Rate Check
+                </button>
               )}
             </div>
-            { modalStep === 'age_input' && (
-                 <button
-                    onClick={handleCloseHeartRateModal}
-                    className="w-full mt-2 px-5 py-2.5 bg-gray-500 text-white rounded-lg hover:bg-gray-600 focus:ring-4 focus:ring-gray-400 transition-colors font-medium"
-                  >
-                    Cancel
-                  </button>
+            {modalStep === 'age_input' && (
+              <button
+                onClick={handleCloseHeartRateModal}
+                className="w-full mt-2 px-5 py-2.5 bg-gray-500 text-white rounded-lg hover:bg-gray-600 focus:ring-4 focus:ring-gray-400 transition-colors font-medium"
+              >
+                Cancel
+              </button>
             )}
           </div>
         </div>

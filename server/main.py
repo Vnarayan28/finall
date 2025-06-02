@@ -25,7 +25,7 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
-# Include API routers
+# API routers
 app.include_router(auth.router, tags=["Authentication"])
 app.include_router(lectures.router, tags=["Lectures"])
 app.include_router(qa.router, tags=["Q&A"])
@@ -37,7 +37,4 @@ async def root():
 
 if __name__ == "__main__":
     logger.info(f"Starting Uvicorn server on port {PORT}")
-    # Ensure you run this from the project root (your_project_root/) using:
-    # python -m app.main
-    # Or, if app/main.py is run directly:
     uvicorn.run("app.main:app", host="0.0.0.0", port=PORT, reload=True)

@@ -1,11 +1,9 @@
 import logging
 from datetime import datetime, timedelta
-from jose import jwt # JWTError might not be needed if get_current_user is gone
+from jose import jwt 
 from passlib.context import CryptContext
 
 from app.core.config import JWT_SECRET, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
-# No longer importing TokenData for get_current_user
-# from app.models.schemas import TokenData
 
 logger = logging.getLogger(__name__)
 

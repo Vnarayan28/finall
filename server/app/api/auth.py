@@ -23,9 +23,9 @@ async def signup(user: UserCreate):
     
     return {
         "message": "User registered successfully",
-        "user_id": user_id, # Return user_id
+        "user_id": user_id,
         "token": create_token(
-            {"sub": user_id, "email": user.email} # "sub" is standard for user ID in JWT
+            {"sub": user_id, "email": user.email}
         )
     }
 
@@ -38,7 +38,7 @@ async def login(user: UserLogin):
     user_id = str(db_user["_id"])
     return {
         "message": "Login successful",
-        "user_id": user_id, # Return user_id
+        "user_id": user_id, 
         "token": create_token(
             {"sub": user_id, "email": db_user["email"]}
         )

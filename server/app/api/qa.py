@@ -18,9 +18,8 @@ async def generate_answer_endpoint(videoId: str, topic: str, question: str):
 
         wikipedia_content = ""
         try:
-            # It's good practice to set a user-agent for Wikipedia
-            # Replace with your actual app info if you have it
-            wikipedia.set_user_agent("EduFocusApp/1.0 (youremail@example.com; yourprojectwebsite.com)")
+
+            wikipedia.set_user_agent("IntellectAi/1.0 (Intellect@Ai.com; IntellectAi.com)")
             wikipedia_content = wikipedia.summary(topic, sentences=5, auto_suggest=False)
         except wikipedia.exceptions.PageError:
             logger.info(f"Wikipedia page not found for topic: {topic}")

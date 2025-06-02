@@ -15,18 +15,14 @@ export default function Profile() {
 
   return (
     <main className="relative min-h-screen flex flex-col items-center justify-center px-10 py-20 text-white overflow-hidden">
-      {/* Background with glowing effects */}
       <div className="absolute inset-0 bg-gradient-to-br from-purple-900 via-black to-blue-900 z-[-1]"></div>
       <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-20 z-[-1]"></div>
 
-      {/* Floating glow effects */}
       <div className="absolute w-60 h-60 bg-purple-500 rounded-full blur-[120px] top-10 left-10 opacity-30"></div>
       <div className="absolute w-80 h-80 bg-blue-500 rounded-full blur-[150px] bottom-10 right-10 opacity-30"></div>
 
-      {/* Profile Card */}
       <Fade direction="up" delay={300}>
         <div className="bg-white/10 backdrop-blur-md p-10 rounded-xl border border-white/20 shadow-lg max-w-md w-full text-center">
-          {/* Avatar */}
           <div className="flex justify-center">
             <Image
               src={user.avatar}

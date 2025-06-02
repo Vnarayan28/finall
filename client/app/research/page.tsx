@@ -18,24 +18,24 @@ type VideoResource = {
   status: "todo" | "inprogress" | "done"; 
 };
 
-const ThemeToggleButton = ({ isDarkMode, toggleTheme }: { isDarkMode: boolean; toggleTheme: () => void }) => (
-  <motion.button
-    onClick={toggleTheme}
-    className={`fixed top-4 right-4 md:top-6 md:right-6 p-2.5 md:p-3 rounded-full z-50 transition-colors duration-300 ${isDarkMode
-        ? "bg-gray-700 hover:bg-gray-600 text-yellow-300"
-        : "bg-yellow-400 hover:bg-yellow-500 text-gray-900"
-      }`}
-    whileHover={{ scale: 1.1, rotate: isDarkMode ? -15 : 15 }}
-    whileTap={{ scale: 0.9 }}
-    aria-label="Toggle theme"
-  >
-    {isDarkMode ? (
-      <Moon className="w-5 h-5 md:w-6 md:h-6" />
-    ) : (
-      <Sun className="w-5 h-5 md:w-6 md:h-6" />
-    )}
-  </motion.button>
-);
+// const ThemeToggleButton = ({ isDarkMode, toggleTheme }: { isDarkMode: boolean; toggleTheme: () => void }) => (
+//   <motion.button
+//     onClick={toggleTheme}
+//     className={`fixed top-4 right-4 md:top-6 md:right-6 p-2.5 md:p-3 rounded-full z-50 transition-colors duration-300 ${isDarkMode
+//         ? "bg-gray-700 hover:bg-gray-600 text-yellow-300"
+//         : "bg-yellow-400 hover:bg-yellow-500 text-gray-900"
+//       }`}
+//     whileHover={{ scale: 1.1, rotate: isDarkMode ? -15 : 15 }}
+//     whileTap={{ scale: 0.9 }}
+//     aria-label="Toggle theme"
+//   >
+//     {isDarkMode ? (
+//       <Moon className="w-5 h-5 md:w-6 md:h-6" />
+//     ) : (
+//       <Sun className="w-5 h-5 md:w-6 md:h-6" />
+//     )}
+//   </motion.button>
+// );
 
 const FullPageStatusDisplay = ({ 
     isDarkMode, 
@@ -57,7 +57,6 @@ const FullPageStatusDisplay = ({
     exit={{ opacity: 0, y: -10 }}
     transition={{ duration: 0.5, ease: "easeInOut" }}
   >
-    {/* Using AnimatedGradientBg for consistent background effects might be better if it supports dynamic gradients */}
     <div className={`absolute inset-0 ${gradientFrom} ${gradientVia} ${gradientTo} bg-gradient-to-br`}>
       <motion.div
         className="absolute inset-0 bg-[length:80px_80px] opacity-5 dark:opacity-10"
@@ -165,7 +164,7 @@ export default function ResearchPage() {
     });
   };
 
-  const goHome = () => push('/input'); // Or '/' if that's your main input/home
+  const goHome = () => push('/input'); 
 
   const fetchAndSetVideos = async (currentTopic: string) => {
     setLoading(true);
@@ -184,8 +183,7 @@ export default function ResearchPage() {
       if (data && Array.isArray(data.videos)) {
         setVideos(data.videos);
         if (data.videos.length === 0) {
-          // setError will be caught by the NoVideosDisplay check later if needed,
-          // but we could set a specific flag or message here if desired.
+          // setError will be caught by the NoVideosDisplay check later if needed, but we could set a specific flag or message here if desired.
         }
       } else {
         console.error("API Success, but videos field is not an array or data is malformed. Data:", data);
@@ -198,7 +196,7 @@ export default function ResearchPage() {
     }
   };
 
-  useEffect(() => { // Handles initial theme loading
+  useEffect(() => { 
     if (typeof window !== 'undefined') {
       const storedTheme = localStorage.getItem('theme');
       const systemPrefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -217,11 +215,9 @@ export default function ResearchPage() {
       return;
     }
     fetchAndSetVideos(topicParam);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
 
-  // --- Render full-page status displays if applicable ---
   if (loading) return (
     <>
       <NavBarLanding isDarkMode={isDarkMode} toggleTheme={toggleTheme} />
@@ -243,7 +239,7 @@ export default function ResearchPage() {
     );
   }
 
-  // --- Main content display if videos are available ---
+  // Main content display if videos are available 
   return (
     <div className={`min-h-screen relative overflow-x-hidden ${isDarkMode ? "dark" : ""}`}>
       <AnimatedGradientBg isDarkMode={isDarkMode} />
@@ -291,9 +287,9 @@ export default function ResearchPage() {
                           }`}
               onClick={() => setSelectedVideo(video.videoId)}
             >
-              <div className="relative aspect-[16/9.5] overflow-hidden"> {/* Slightly taller aspect ratio for content */}
+              <div className="relative aspect-[16/9.5] overflow-hidden"> 
                 <Image
-                  src={video.thumbnails || `https://i.ytimg.com/vi/${video.videoId}/hqdefault.jpg`} // hqdefault is a good fallback
+                  src={video.thumbnails || `https://i.ytimg.com/vi/${video.videoId}/hqdefault.jpg`} 
                   alt={video.title}
                   fill
                   sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"

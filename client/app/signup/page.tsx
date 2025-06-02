@@ -3,16 +3,13 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { UserPlus, Moon, Sun, ArrowLeft, Lock, Mail, Loader2, Zap } from 'lucide-react'; // Added UserPlus
-// Assuming AnimatedGradientBg is in components folder
+import { UserPlus, Moon, Sun, ArrowLeft, Lock, Mail, Loader2, Zap } from 'lucide-react'; 
 import AnimatedGradientBg from '../components/AnimatedGradientBg'; 
-// You might not need NavBarLanding here if using standalone buttons
 
 export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  // It's good practice to add a username field for signup
-  const [username, setUsername] = useState(''); // ADDED USERNAME
+  const [username, setUsername] = useState(''); 
   const [message, setMessage] = useState({ text: '', type: '' });
   const [isDarkMode, setIsDarkMode] = useState(true); // Default to dark
   const [isLoading, setIsLoading] = useState(false);
@@ -31,7 +28,7 @@ export default function SignupPage() {
         setIsLoading(false);
         return;
     }
-    if (password.length < 6) { // Example: password length
+    if (password.length < 6) { 
         setMessage({ text: 'Password must be at least 6 characters.', type: 'error'});
         setIsLoading(false);
         return;
@@ -39,7 +36,7 @@ export default function SignupPage() {
 
 
     try {
-      const response = await fetch('http://localhost:8000/signup', { // Ensure this URL is correct
+      const response = await fetch('http://localhost:8000/signup', { 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         // Send username along with email and password
@@ -52,12 +49,12 @@ export default function SignupPage() {
         throw new Error(data.detail || 'Signup failed. Please try again.');
       }
 
-      if (!data.token) { // Assuming signup also returns a token for auto-login
+      if (!data.token) { 
         throw new Error('Authentication error post-signup. No token received.');
       }
       localStorage.setItem('authToken', data.token);
       setMessage({ text: 'Signup successful! Redirecting...', type: 'success' });
-      setTimeout(() => router.push('/input'), 1500); // Adjust redirect path
+      setTimeout(() => router.push('/input'), 1500); 
     } catch (err: any) {
       setMessage({ text: err.message || 'An unexpected error occurred.', type: 'error' });
     } finally {
@@ -157,7 +154,6 @@ export default function SignupPage() {
               Username
             </label>
             <div className={`relative group`}>
-              {/* Using UserPlus or a generic user icon here */}
               <UserPlus className={`absolute left-3 top-1/2 -translate-y-1/2 transition-colors duration-300 pointer-events-none 
                                ${isDarkMode ? 'text-gray-500 group-focus-within:text-purple-400' : 'text-gray-400 group-focus-within:text-purple-600'}`} size={18} />
               <input
@@ -184,7 +180,7 @@ export default function SignupPage() {
               <Mail className={`absolute left-3 top-1/2 -translate-y-1/2 transition-colors duration-300 pointer-events-none 
                                ${isDarkMode ? 'text-gray-500 group-focus-within:text-purple-400' : 'text-gray-400 group-focus-within:text-purple-600'}`} size={18} />
               <input
-                id="email-signup" // Unique ID
+                id="email-signup" 
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}

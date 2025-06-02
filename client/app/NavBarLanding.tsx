@@ -26,7 +26,6 @@ function NavBarLanding({ isDarkMode, toggleTheme }: NavBarLandingProps) {
     if (isMobileMenuOpen) {
       setIsMobileMenuOpen(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]); 
 
   const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -62,7 +61,6 @@ function NavBarLanding({ isDarkMode, toggleTheme }: NavBarLandingProps) {
               </span>
             </Link>
 
-            {/* Centered Navigation Links - Fixed positioning */}
             <div className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 items-center space-x-3 lg:space-x-4 z-10">
               {navItems.map((item) => {
                 const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
@@ -82,7 +80,6 @@ function NavBarLanding({ isDarkMode, toggleTheme }: NavBarLandingProps) {
               })}
             </div>
 
-            {/* Right Side Actions - Ensure proper spacing */}
             <div className="flex items-center gap-3 z-10">
               <motion.button
                 onClick={toggleTheme}

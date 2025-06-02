@@ -23,9 +23,7 @@ router = APIRouter()
 retell_api_key = os.getenv("RETELL_API_KEY")
 if not retell_api_key:
     logger.critical("RETELL_API_KEY not found in environment variables. Retell functionality will fail.")
-    # Depending on your app's needs, you might raise an error here to prevent startup
-    # or allow it to start with Retell features disabled.
-    retell_sdk_instance = None # Or a mock/dummy instance
+    retell_sdk_instance = None 
 else:
     retell_sdk_instance = RetellSDK(api_key=retell_api_key)
     logger.info("Retell SDK initialized successfully.")
@@ -34,7 +32,6 @@ else:
 RETELL_AGENT_ID_CONFIG = os.getenv("RETELL_AGENT_ID", "your_default_agent_id_here")
 RETELL_FROM_NUMBER_CONFIG = os.getenv("RETELL_FROM_NUMBER", "+916307942349")
 
-# --- Pydantic Models for Request and Response ---
 class RetellCallRequest(BaseModel):
     text_to_explain: str = Field(..., description="The text content the Retell agent should explain.")
     user_phone_number: str = Field(..., description="The phone number of the user to call.", pattern=r"^\+[1-9]\d{1,14}$") # Basic E.164 validation
@@ -46,8 +43,7 @@ class RetellCallResponse(BaseModel):
     call_id: str | None = None
 
 
-# --- Dependency for Retell SDK ---
-# This allows for easier testing and ensures SDK is available.
+
 async def get_retell_sdk():
     if not retell_sdk_instance:
         raise HTTPException(
@@ -61,11 +57,11 @@ async def get_retell_sdk():
     "/initiate-retell-call",
     response_model=RetellCallResponse,
     summary="Initiates a call via Retell AI to explain a given text.",
-    tags=["Retell Call"] # Add a new tag for OpenAPI docs
+    tags=["Retell Call"] 
 )
 async def initiate_call_endpoint(
     payload: RetellCallRequest = Body(...),
-    retell: RetellSDK = Depends(get_retell_sdk) # Use dependency injection
+    retell: RetellSDK = Depends(get_retell_sdk)
 ):
     logger.info(f"Received Retell call request for user: {payload.user_phone_number}, topic: {payload.topic}")
 
